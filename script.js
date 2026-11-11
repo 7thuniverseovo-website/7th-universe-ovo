@@ -5,8 +5,8 @@ window.__GVG_SCRIPT_VERSION='39.0';
   does not replace the Leader browser session.
 */
 
-const SUPABASE_URL = 'https://YOUR-PROJECT-ID.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+const SUPABASE_URL = window.APP_CONFIG.SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = window.APP_CONFIG.SUPABASE_PUBLISHABLE_KEY;
 const TIME_ZONE = 'Asia/Karachi';
 const IMAGE_BUCKET = 'result-images';
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -42,7 +42,7 @@ function isSimpleGuildName(name) {
   return value.length >= 3 && value.length <= 30 && /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(value);
 }
 
-const TURNSTILE_SITE_KEY = 'YOUR_TURNSTILE_SITE_KEY';
+const TURNSTILE_SITE_KEY = window.APP_CONFIG.TURNSTILE_SITE_KEY;
 const captchaWidgets = {};
 const captchaPending = {};
 
