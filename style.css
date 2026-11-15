@@ -15,7 +15,7 @@
 /* 1. Tokens */
 :root{
   /* surfaces (black -> dark red) */
-  --ink-0:#050204;--ink-1:#050a05;--ink-2:#081008;--ink-3:#0b170b;--ink-4:#101f10;--ink-5:#2a1520;
+  --ink-0:#050204;--ink-1:#050a05;--ink-2:#081008;--ink-3:#0b170b;--ink-4:#1f1017;--ink-5:#2a1520;
   /* red family */
   --red-900:#063a09;--red-800:#0a5a10;--red-700:#0d7d15;--red-600:#0fa31a;--red-500:#10c81e;--red-400:#19e328;
   --red-300:#4dff5b;--red-200:#8aff92;--red-100:#c2ffc6;
@@ -88,7 +88,7 @@ h3{color:#fff;font:800 28px/1 var(--f-display);letter-spacing:.03em;text-transfo
 
 /* 3. Top line, header, footer */
 .topline{height:3px;background:linear-gradient(90deg,var(--red-800),var(--red-500) 30%,var(--gold-300) 50%,var(--red-500) 70%,var(--red-800))}
-body>header{position:sticky;top:0;z-index:100;background:rgba(3,7,3,.94);border-bottom:1px solid var(--line-gold);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+body>header{position:sticky;top:0;z-index:100;background:rgba(7,3,5,.94);border-bottom:1px solid var(--line-gold);box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .nav{width:min(calc(100% - 24px),var(--max));margin:auto;min-height:76px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}
 .nav-left,.nav-right{display:flex;align-items:center;gap:8px}
 .nav-right{justify-content:flex-end}
@@ -130,7 +130,7 @@ body>header{position:sticky;top:0;z-index:100;background:rgba(3,7,3,.94);border-
 /* 5. Badges, pills, chips, status */
 .badge{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:26px;padding:0 10px;border-radius:var(--r-xs);border:1px solid var(--line-2);background:rgba(255,255,255,.05);
   color:var(--text-2);font:800 10.5px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
-.badge-blue{background:rgba(200,16,46,.14);border-color:var(--bad-line);color:var(--red-200)}
+.badge-blue{background:rgba(16,200,30,.14);border-color:var(--bad-line);color:var(--red-200)}
 .badge-blue::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--red-300);box-shadow:0 0 8px var(--red-300)}
 .badge-gold{background:rgba(233,196,106,.1);border-color:var(--line-gold);color:var(--gold-200)}
 .badge-green{background:rgba(233,196,106,.1);border-color:var(--line-gold);color:var(--gold-200)}
@@ -388,7 +388,7 @@ input[disabled],select[disabled],textarea[disabled]{opacity:.55;cursor:not-allow
 .time-picker-trigger{position:relative;z-index:2;touch-action:manipulation;width:100%;min-height:52px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--ink-1);color:#fff;font:800 13px var(--f-body);letter-spacing:.08em;text-transform:uppercase}
 .time-picker-trigger:hover{border-color:var(--line-gold)}
 .time-picker-arrow{color:var(--gold-300);font-size:22px}
-.time-picker-backdrop{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(1,3,1,.82)}
+.time-picker-backdrop{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(3,1,2,.82)}
 .time-picker-backdrop.open{display:flex}
 .time-picker-modal{width:min(420px,100%);padding:20px;border:1px solid var(--line-gold);border-radius:var(--r-lg);background:var(--ink-2);box-shadow:var(--sh-2)}
 .time-picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
@@ -673,7 +673,7 @@ input[disabled],select[disabled],textarea[disabled]{opacity:.55;cursor:not-allow
 .registered-guild-shell{max-height:62vh}
 
 /* 13. Modals and branded dialogs */
-.modal-backdrop{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(1,3,1,.84)}
+.modal-backdrop{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(3,1,2,.84)}
 .modal-backdrop.open{display:flex}
 .modal{position:relative;width:min(660px,100%);max-height:88vh;overflow:auto;padding:22px;border:1px solid var(--line-gold);border-radius:var(--r-lg);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008) 40%),var(--ink-2);box-shadow:var(--sh-2)}
 .modal::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold-400) 22%,var(--red-500) 62%,transparent)}
@@ -683,7 +683,7 @@ input[disabled],select[disabled],textarea[disabled]{opacity:.55;cursor:not-allow
 .close-btn{flex:0 0 36px;width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line-2);border-radius:50%;background:var(--ink-4);color:#fff;font-size:20px;line-height:1;cursor:pointer}
 .close-btn:hover{border-color:var(--red-300);background:var(--bad-bg)}
 .modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(1,3,1,.86)}
+.app-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,1,2,.86)}
 .app-dialog-backdrop.open{display:flex}
 .app-dialog{position:relative;width:min(100%,470px);max-height:min(88dvh,720px);overflow:auto;padding:24px;border:1px solid var(--line-gold);border-radius:var(--r-lg);background:var(--ink-2);box-shadow:var(--sh-2)}
 .app-dialog::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--gold-grad)}
@@ -773,8 +773,8 @@ input[disabled],select[disabled],textarea[disabled]{opacity:.55;cursor:not-allow
    Glow = box-shadow / gradients (the site-wide guard disables CSS filters and animations).
    ========================================================================== */
 :root{
-  --edge-red:#6b0a1c;--edge-gold:#8a5d10;--edge-dark:#080304;
-  --glow-r:0 0 22px rgba(255,60,95,.5);--glow-g:0 0 22px rgba(245,207,107,.5);
+  --edge-red:#0a6b11;--edge-gold:#8a5d10;--edge-dark:#030803;
+  --glow-r:0 0 22px rgba(60,255,74,.5);--glow-g:0 0 22px rgba(245,207,107,.5);
 }
 
 /* ---- background: deep black-red with a faint carbon/diagonal texture ---- */
@@ -801,7 +801,7 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 
 /* ---- 3D glossy buttons ---- */
 .btn{min-height:48px;border-radius:13px;overflow:hidden;z-index:0;font-size:12.5px;letter-spacing:.09em;border:1px solid rgba(255,255,255,.2);
-  background:linear-gradient(180deg,#34191f 0%,#1f0e12 50%,#150a0d 100%);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.8);
+  background:linear-gradient(180deg,#19341b 0%,#0e1f0f 50%,#0a150a 100%);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.8);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.45),0 4px 0 var(--edge-dark),0 9px 16px rgba(0,0,0,.55);
   transition:transform .09s,box-shadow .09s,filter .15s,background .15s}
 .btn::before{content:"";position:absolute;z-index:-1;left:2px;right:2px;top:2px;height:48%;border-radius:11px 11px 40% 40%/11px 11px 16px 16px;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.04));pointer-events:none}
@@ -836,7 +836,7 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 
 /* ---- badges: glossy and glowing ---- */
 .badge{min-height:28px;border-radius:8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2px 0 rgba(0,0,0,.5)}
-.badge-blue{background:linear-gradient(180deg,rgba(255,90,115,.32),rgba(150,10,35,.4));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 0 rgba(0,0,0,.5),0 0 14px rgba(255,60,95,.35);color:#ffd5dc}
+.badge-blue{background:linear-gradient(180deg,rgba(90,255,103,.32),rgba(10,150,20,.4));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 0 rgba(0,0,0,.5),0 0 14px rgba(60,255,74,.35);color:#d5ffd8}
 .badge-gold,.badge-green{background:linear-gradient(180deg,rgba(245,207,107,.3),rgba(120,80,10,.36));color:#ffe9a8;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 0 rgba(0,0,0,.5),0 0 12px rgba(245,207,107,.25)}
 #member-status-badge.badge-green,#my-hub-status.badge-green,.challenge-card .badge-green{background:linear-gradient(180deg,rgba(62,207,142,.3),rgba(10,90,55,.4));color:#aef3d3;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.5),0 0 12px rgba(62,207,142,.3)}
 .pill{background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.03));box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 0 rgba(0,0,0,.45)}
@@ -848,7 +848,7 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
   border:1px solid rgba(90,255,103,.3);border-radius:18px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 1px rgba(0,0,0,.45),0 16px 38px rgba(0,0,0,.65),0 0 30px rgba(16,200,30,.14)}
 .card::before,.admin-panel::before,.modal::before,.app-dialog::before{height:3px;background:linear-gradient(90deg,transparent,#e9c46a 20%,#3fff4c 55%,#e9c46a 85%,transparent);box-shadow:0 0 14px rgba(80,255,95,.6)}
-.admin-section{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 20%),linear-gradient(155deg,#112711,#0a130a 60%,#070d07);border:1px solid rgba(90,255,103,.28);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 14px 34px rgba(0,0,0,.6),0 0 24px rgba(16,200,30,.12)}
+.admin-section{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 20%),linear-gradient(155deg,#112711,#130a0e 60%,#070d07);border:1px solid rgba(90,255,103,.28);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 14px 34px rgba(0,0,0,.6),0 0 24px rgba(16,200,30,.12)}
 .admin-section .admin-panel,.review-section{background:rgba(0,0,0,.28);box-shadow:inset 0 2px 8px rgba(0,0,0,.5);border-radius:14px}
 .empty{background:rgba(0,0,0,.3);box-shadow:inset 0 2px 8px rgba(0,0,0,.5)}
 
@@ -887,7 +887,7 @@ label{color:#cbe8cd}
 .challenge-card[data-state="result_pending"]::before{color:#e9c46a}
 .ch-versus{background:linear-gradient(180deg,#030703,#070f07);box-shadow:inset 0 3px 10px rgba(0,0,0,.7)}
 .ch-vs{background:linear-gradient(180deg,#fff3c4,#d9a02c);color:#2b1800;border:1px solid #fff0b0;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 3px 0 var(--edge-gold),0 0 16px rgba(245,207,107,.5)}
-.result-slot,.my-result-item,.guild-profile-card,.moderator-card,.leader-card,.info-box,.pf-row,.pp-block,.hub-stat,.guild-profile-kpi,.hub-today{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,0) 30%),linear-gradient(155deg,#112510,#0a130a);border-color:rgba(90,255,103,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.45)}
+.result-slot,.my-result-item,.guild-profile-card,.moderator-card,.leader-card,.info-box,.pf-row,.pp-block,.hub-stat,.guild-profile-kpi,.hub-today{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,0) 30%),linear-gradient(155deg,#25101a,#130a0e);border-color:rgba(90,255,103,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.45)}
 .guild-profile-card:hover{border-color:rgba(150,255,157,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 10px 22px rgba(0,0,0,.55),0 0 22px rgba(60,255,74,.25)}
 .guild-profile-avatar,.hub-logo{border:2px solid #e9c46a;box-shadow:0 0 0 3px rgba(22,214,37,.3),0 0 18px rgba(245,207,107,.4),inset 0 2px 8px rgba(0,0,0,.6)}
 .guild-profile-kpi strong,.hub-stat b{color:#ffe28a;text-shadow:0 0 12px rgba(245,207,107,.45),0 2px 0 rgba(90,50,0,.7)}
@@ -897,9 +897,9 @@ label{color:#cbe8cd}
 .ach-bar i{box-shadow:0 0 10px rgba(245,207,107,.6)}
 .rank-table th,.admin-table th,.registered-guild-table th,.moderator-table th{background:linear-gradient(180deg,#152c16,#0c1a0c);color:#c7e3c9}
 .admin-table-shell{background:linear-gradient(180deg,#040a04,#061006);box-shadow:inset 0 3px 10px rgba(0,0,0,.65)}
-.dots-btn,.close-btn,.app-dialog-close,.time-picker-close{background:linear-gradient(180deg,#34191f,#180b0f);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 3px 0 #070203}
-.close-btn:active,.dots-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #070203}
-.ff-tile{background:linear-gradient(180deg,#122512,#0a130a);border-color:rgba(90,255,103,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 0 #020702,0 8px 14px rgba(0,0,0,.45)}
+.dots-btn,.close-btn,.app-dialog-close,.time-picker-close{background:linear-gradient(180deg,#19341b,#0b180b);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 3px 0 #020702}
+.close-btn:active,.dots-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #020702}
+.ff-tile{background:linear-gradient(180deg,#25121a,#130a0e);border-color:rgba(90,255,103,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 0 #020702,0 8px 14px rgba(0,0,0,.45)}
 .ff-tile.selected{border-color:#f3c653;background:linear-gradient(180deg,rgba(245,207,107,.2),rgba(10,150,20,.25)),#0b170b;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 4px 0 var(--edge-gold),0 0 22px rgba(245,207,107,.45)}
 .time-picker-trigger,.guest-toggle{background:linear-gradient(180deg,#172e18,#0a150a);border:1px solid rgba(90,255,103,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 4px 0 #020702,0 8px 14px rgba(0,0,0,.45)}
 .guest-toggle{border-style:solid;border-color:rgba(233,196,106,.5);color:#ffe9a8}
@@ -917,7 +917,7 @@ label{color:#cbe8cd}
 .nav-left{gap:10px}
 
 /* ---- side drawer ---- */
-.drawer-backdrop{position:fixed;inset:0;z-index:900;background:rgba(0,2,0,.72);opacity:0;transition:opacity .25s}
+.drawer-backdrop{position:fixed;inset:0;z-index:900;background:rgba(2,0,1,.72);opacity:0;transition:opacity .25s}
 .drawer-backdrop.open{opacity:1}
 .drawer-backdrop[hidden]{display:none}
 .side-drawer{position:fixed;left:0;top:0;bottom:0;z-index:910;width:min(86vw,350px);display:flex;flex-direction:column;visibility:hidden;transform:translateX(-104%);
@@ -1021,7 +1021,7 @@ body.drawer-open{overflow:hidden}
 /* ---- Hall of Fame: stronger gold glow ---- */
 .hof2,.hof-main-card{border-color:rgba(245,207,107,.6);box-shadow:var(--sh-2),0 0 36px rgba(245,207,107,.18),inset 0 1px 0 rgba(255,241,194,.18)}
 .hof2-crest{box-shadow:0 0 0 6px rgba(233,196,106,.2),0 0 0 7px rgba(233,196,106,.5),0 0 40px rgba(245,207,107,.55),0 16px 30px rgba(0,0,0,.6)}
-.hof-period-tile{background:linear-gradient(180deg,#132613,#0a130a);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 4px 0 #020702}
+.hof-period-tile{background:linear-gradient(180deg,#132613,#130a0e);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 4px 0 #020702}
 .hof-period-tile.has-award{border-color:rgba(245,207,107,.6);background:linear-gradient(180deg,rgba(245,207,107,.2),rgba(0,0,0,.3));box-shadow:inset 0 1px 0 rgba(255,241,194,.3),0 4px 0 #1d1404,0 0 16px rgba(245,207,107,.22)}
 .pt-ring{box-shadow:0 0 12px rgba(245,207,107,.4)}
 
@@ -1042,9 +1042,9 @@ body.drawer-open{overflow:hidden}
 .app-dialog-btn,.moderator-action-btn,.time-picker-ampm button{border-radius:12px;border:1px solid rgba(255,255,255,.2);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.8);
   background:linear-gradient(180deg,#19341b 0%,#0e1f0f 50%,#0a150a 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -2px 0 rgba(0,0,0,.45),0 4px 0 var(--edge-dark),0 8px 14px rgba(0,0,0,.5)}
 .app-dialog-btn:active,.moderator-action-btn:active,.time-picker-ampm button:active{transform:translateY(3px);box-shadow:inset 0 2px 6px rgba(0,0,0,.5),0 1px 0 var(--edge-dark)}
-.app-dialog-btn.primary,.time-picker-ampm button.active,.ban-appeal{border-color:#ff9fb0;text-shadow:0 1px 2px rgba(80,0,12,.85);
-  background:linear-gradient(180deg,#ff6a86 0%,#ee1f46 44%,#c70e2e 52%,#e2173b 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(80,0,14,.5),0 4px 0 var(--edge-red),0 9px 16px rgba(0,0,0,.5),var(--glow-r)}
+.app-dialog-btn.primary,.time-picker-ampm button.active,.ban-appeal{border-color:#9fffa6;text-shadow:0 1px 2px rgba(0,80,6,.85);
+  background:linear-gradient(180deg,#6aff74 0%,#1fee2d 44%,#0ec71b 52%,#17e225 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(0,80,6,.5),0 4px 0 var(--edge-red),0 9px 16px rgba(0,0,0,.5),var(--glow-r)}
 .app-dialog-btn.danger{border-color:#ff5f7c;background:linear-gradient(180deg,#a61c34 0%,#6b0d1f 50%,#470714 100%);box-shadow:inset 0 1px 0 rgba(255,160,175,.45),inset 0 -2px 0 rgba(0,0,0,.45),0 4px 0 #2a040c,0 9px 16px rgba(0,0,0,.55),0 0 16px rgba(255,60,95,.35)}
 .time-picker-preview{box-shadow:inset 0 3px 10px rgba(0,0,0,.6),0 0 22px rgba(245,207,107,.2)}
 .time-picker-preview-time{text-shadow:0 0 18px rgba(245,207,107,.6),0 3px 0 rgba(90,50,0,.8)}
@@ -1064,7 +1064,7 @@ body:not([data-guest="1"]) .page-bar{display:none}
 .bu-card{--bu-g1:var(--gold1,#fff2b8);--bu-g2:var(--gold2,#e7c15a);--bu-g3:var(--gold3,#9a7421);
   position:relative;pointer-events:auto;box-sizing:border-box;width:min(560px,100%);display:flex;align-items:center;gap:12px;
   padding:11px 40px 11px 11px;border-radius:16px;border:2px solid transparent;color:#fff6dc;overflow:hidden;
-  background:linear-gradient(135deg,rgba(8,30,14,.985),rgba(4,9,4,.985)) padding-box,
+  background:linear-gradient(135deg,rgba(30,17,8,.985),rgba(4,9,4,.985)) padding-box,
              linear-gradient(120deg,var(--bu-g1),var(--bu-g2) 32%,var(--bu-g3) 58%,var(--bu-g2) 80%,var(--bu-g1)) border-box;
   box-shadow:0 0 0 1px rgba(231,193,90,.28),0 12px 34px rgba(0,0,0,.62),0 0 28px rgba(231,193,90,.42);
   will-change:transform}
@@ -1126,7 +1126,7 @@ body:not([data-guest="1"]) .page-bar{display:none}
 /* ============================================================
    17. v40 - pro polish: tap feel, clear sections, ranking rows, result cards, settings
    ============================================================ */
-:root{--b-1:rgba(255,255,255,.09);--b-2:rgba(255,255,255,.16);--well:#040a04}
+:root{--b-1:rgba(255,255,255,.09);--b-2:rgba(255,255,255,.16);--well:#0a0407}
 .btn,.gs-btn,.day-tab,.drawer-item,.menu-btn,.ff-tile,.rules-tab,.ranking-mode-button,.hof-type-tab,.hof-year-tile,.hof-period-tile,.ach-tab,.ach-cell,.close-btn,.dots-btn,.link-btn,.wa-btn,.social-btn,.title-opt,.admin-tab,.moderator-section-tab,.moderator-action-btn{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .ach-cell img,.ach-cell .bfx{pointer-events:none;-webkit-user-drag:none}
 .ach-cell:active img{transform:none}
@@ -1158,9 +1158,9 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .rank-table tbody tr.rk td:last-child{border-right-width:1px;border-radius:0 14px 14px 0}
 .rank-table tbody tr.rk-1 td{background:linear-gradient(180deg,#4d3710,#2a1c08);border-color:rgba(233,196,106,.75)}
 .rank-table tbody tr.rk-2 td{background:linear-gradient(180deg,#3b4048,#21252b);border-color:rgba(215,221,228,.55)}
-.rank-table tbody tr.rk-3 td{background:linear-gradient(180deg,#4b2e19,#102a16);border-color:rgba(211,139,79,.6)}
+.rank-table tbody tr.rk-3 td{background:linear-gradient(180deg,#4b2e19,#2a1810);border-color:rgba(211,139,79,.6)}
 .rank-table tbody tr.rk:hover td{filter:none;border-color:rgba(160,255,167,.55)}
-.rk-badge{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:linear-gradient(180deg,#3a1c25,#1b0c11);color:#ecdde0;font:800 17px/1 var(--f-display);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 #070203}
+.rk-badge{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:linear-gradient(180deg,#1c3a1d,#0c1b0c);color:#ecdde0;font:800 17px/1 var(--f-display);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 #020702}
 .rk-1 .rk-badge{background:linear-gradient(180deg,#fff1c2,#d4a437);color:#2b1800;border-color:#fff0b0}
 .rk-2 .rk-badge{background:linear-gradient(180deg,#f1f4f7,#aab3bd);color:#1d232a;border-color:#fff}
 .rk-3 .rk-badge{background:linear-gradient(180deg,#f0b27a,#b4682f);color:#2a1305;border-color:#ffd2a8}
@@ -1218,7 +1218,7 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 /* v41: modal header (with BACK) always visible; header can never cover a modal again */
 .modal-head{position:sticky;top:0;z-index:6;margin:-22px -22px 14px;padding:14px 22px;background:var(--ink-2);border-bottom:1px solid var(--b-1)}
 .hof-detail-top{position:sticky;top:0;z-index:6;margin:-22px -18px 16px;padding:14px 18px;background:var(--ink-2);border-bottom:1px solid var(--b-1)}
-.close-btn{flex:0 0 auto;width:auto;height:40px;padding:0 16px;border:1px solid var(--line-gold);border-radius:999px;background:linear-gradient(180deg,#3a1520,#1b0a10);color:var(--gold-200);font:800 11px/1 var(--f-body);letter-spacing:.14em;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #070203}
+.close-btn{flex:0 0 auto;width:auto;height:40px;padding:0 16px;border:1px solid var(--line-gold);border-radius:999px;background:linear-gradient(180deg,#153a16,#0a1b0a);color:var(--gold-200);font:800 11px/1 var(--f-body);letter-spacing:.14em;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #020702}
 
 /* v42: result review cards - status + time on top, match + score, proof, big APPROVE / REJECT bar */
 .mr-status{margin-top:6px}
@@ -1253,3 +1253,11 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
 .ff-grid-5 .ff-tile,.ff-grid-3 .ff-tile{padding:8px 6px 12px;gap:4px}
 .ff-grid-2 .ff-pic{aspect-ratio:1;width:100%;max-width:190px}
 .ff-tile .ff-name{font-size:12px;letter-spacing:.08em}
+
+/* 1V1: dark-green buttons (logout, moderator, admin access) */
+.btn-dk-green{background:rgba(16,200,30,.1);border-color:var(--bad-line);color:var(--red-200)}
+.btn-dk-green:hover{background:rgba(16,200,30,.22);border-color:var(--red-300);color:#fff}
+.btn-dk-green{border-color:#5fff6a;color:#d5ffd8;
+  background:linear-gradient(180deg,#1a8d22 0%,#0d5c12 50%,#073e0a 100%);
+  box-shadow:inset 0 1px 0 rgba(160,255,167,.45),inset 0 -2px 0 rgba(0,0,0,.45),0 4px 0 #042a06,0 9px 16px rgba(0,0,0,.55),0 0 16px rgba(60,255,74,.3)}
+.btn-dk-green:hover{background:linear-gradient(180deg,#20a829 0%,#116e17 50%,#084a0c 100%);color:#fff}
