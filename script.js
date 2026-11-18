@@ -432,6 +432,7 @@ function openMemberSection(name){
   document.querySelectorAll('[data-member-section]').forEach(btn=>btn.classList.toggle('active',btn.dataset.memberSection===section));
   state.memberSection=section;
   document.body.dataset.section=section;
+  window.gvgNotifySeen?.(section);
   const sectionTitle=$('member-section-title'); if(sectionTitle) sectionTitle.textContent=MEMBER_SECTIONS[section]||'';
   closeDrawer({silent:true});
   if(section==='challenges'){setChallengeView('live');loadSectionCached('member:challenges',loadLiveChallenges,15000);}
@@ -1104,6 +1105,7 @@ async function loadLiveChallenges(){
     state.challenges=res.data||[];
     renderChallenges();
     fillResultChallenges();
+    window.gvgNotifyLoaded?.('challenges');
   }catch(error){
     console.error(error);
     const msg='<div class="empty">Could not load live challenges.</div>';
@@ -1423,6 +1425,7 @@ async function loadApprovedResults(){
     state.results=rows;
     if(state.resultDay<0||state.resultDay>6) state.resultDay=gvgDayIndex(Date.now());
     renderLiveResults();
+    window.gvgNotifyLoaded?.('results');
   }catch(error){
     console.error(error);
     if(target) target.innerHTML='<div class="empty">Could not load live results.</div>';
@@ -1563,7 +1566,7 @@ async function enterMember({skipGuildReload=false}={}){
   await refreshMember({reloadGuild:!skipGuildReload});
   if(memberDashboardAllowed()) openMemberSection('dashboard');
   else setMemberAccessGate();
-  window.gvgBadgeKick?.();
+  window.gvgBadgeKick?.();window.gvgNotifyKick?.();
 }
 async function refreshMember({reloadGuild=true}={}){
   if(reloadGuild) await loadMyGuild();
@@ -1580,6 +1583,7 @@ async function isAdmin(){
 function setAdminPanel(loggedIn){
   $('admin-login-view')?.classList.toggle('hidden',!!loggedIn);
   $('admin-dashboard')?.classList.toggle('hidden',!loggedIn);
+  syncMenuButton();
 }
 async function handleAdminLogin(e){
   e.preventDefault();
@@ -1826,6 +1830,7 @@ function openAdminSection(name){
   if(section==='ban') loadSectionCached('admin:bans',loadBans,15000);
   if(section==='trophies') loadSectionCached('admin:trophies',loadHofAdmin,20000);
   if(section==='rules') loadAdminRules();
+  if(staffMode()==='admin') renderStaffNav('admin');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1839,6 +1844,7 @@ async function isModerator(){
 function setModeratorPanel(loggedIn){
   $('moderator-login-view')?.classList.toggle('hidden',!!loggedIn);
   $('moderator-dashboard')?.classList.toggle('hidden',!loggedIn);
+  syncMenuButton();
 }
 async function handleModeratorLogin(e){
   e.preventDefault();clearStatus('moderator-login-status');
@@ -1893,6 +1899,7 @@ function openModeratorSection(name){
   });
   if(section==='results')loadSectionCached('moderator:results',loadModeratorResults,10000);
   if(section==='guilds')loadSectionCached('moderator:guilds',loadModeratorGuilds,15000);
+  if(staffMode()==='moderator') renderStaffNav('moderator');
 }
 function moderatorStatusLabel(g){
   if(g.is_banned || (g.ban_until && new Date(g.ban_until)>new Date()))return 'BANNED';
@@ -1998,15 +2005,33 @@ function badgeLegacyFile(n){
   return `./assets/badges/badge_${String(n).padStart(3,'0')}_set${set}_row${row}_${GVG_TIER_KEYS[tier-1]}.png`;
 }
 /* Small WebP badges (about 19 KB each) are used when they exist in assets/b/; otherwise the original PNG is loaded automatically. */
+/* v45: on GitHub the badge folder was uploaded as "assets /badges" (a space after "assets"), so ./assets/badges/ gave 404.
+   The site now tries the normal folder first, then the space-named folder, remembers the one that works,
+   and hides the broken-picture icon if both fail. Once the folder is fixed on GitHub nothing else needs to change. */
+const BADGE_DIRS=['./assets/badges/','./assets%20/badges/'];
+let badgeDirIdx=0;
+try{badgeDirIdx=localStorage.getItem('gvg-badge-dir')==='1'?1:0;}catch{}
 function badgeFile(mission,tier){
   const n=(mission-1)*5+tier;
-  return `./assets/b/b${String(n).padStart(3,'0')}.webp`;
+  return `${BADGE_DIRS[badgeDirIdx]}Badge_${String(n).padStart(3,'0')}.png`;   /* 1V1: Badge_001.png ... Badge_100.png */
 }
+const BADGE_SRC_RE=/^(\.\/assets(?:%20)?\/badges\/)(Badge_\d{3}\.png)$/;
 document.addEventListener('error',e=>{
   const img=e.target;
-  if(!img||img.tagName!=='IMG'||img.dataset.fb) return;
-  const m=/\/assets\/b\/b(\d{3})\.webp/.exec(img.getAttribute('src')||'');
-  if(m){img.dataset.fb='1';img.src=badgeLegacyFile(Number(m[1]));}
+  if(!img||img.tagName!=='IMG') return;
+  const m=BADGE_SRC_RE.exec(img.getAttribute('src')||'');
+  if(!m) return;
+  if(img.dataset.fb){img.classList.add('img-missing');return;}   /* both folders failed */
+  img.dataset.fb='1';
+  img.src=BADGE_DIRS[m[1]===BADGE_DIRS[0]?1:0]+m[2];
+},true);
+document.addEventListener('load',e=>{
+  const img=e.target;
+  if(!img||img.tagName!=='IMG'||!img.dataset.fb) return;
+  const m=BADGE_SRC_RE.exec(img.getAttribute('src')||'');
+  if(!m) return;
+  const idx=m[1]===BADGE_DIRS[1]?1:0;
+  if(idx!==badgeDirIdx){badgeDirIdx=idx;try{localStorage.setItem('gvg-badge-dir',String(idx));}catch{}}
 },true);
 /* Badge picture. Platinum (tier 4) and Diamond (tier 5) that are UNLOCKED get a glow + shine wrapper (see v37.2 block).
    alt, title and attrs must already be HTML-escaped by the caller. */
@@ -2607,7 +2632,7 @@ async function openHallOfFamePeriodDetails(){
   openModal(detailHtml,'hof-detail-modal');bindTrophy3D($('modal'));
 }
 
-async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
+async function changeHallType(type){if(!['weekly','monthly'].includes(type))return;window.gvgNotifySeen?.('hof:'+type);state.hofMode=type;state.hofYear=null;state.hofPeriod=1;await loadHallOfFame();}
 function renderAdminHofAwards(){const target=$('admin-hof-awards-list');if(!target)return;const rows=(state.adminHofAwards||[]).sort((a,b)=>String(b.awarded_at).localeCompare(String(a.awarded_at)));target.innerHTML=rows.length?rows.slice(0,60).map(a=>`<div class="admin-hof-award-row"><div class="admin-hof-award-main"><strong>${escapeHtml(canonicalTrophyTitle(a))} — ${escapeHtml(a.guild_name)}</strong><small>${escapeHtml(String(a.award_year))} · ${escapeHtml(hallPeriodLabel(a.award_type,Number(a.period_number)))} · UID ${escapeHtml(a.guild_uid||'not added')}${customTrophyLabel(a)?' · '+escapeHtml(customTrophyLabel(a)):''}</small></div><button class="btn btn-red btn-small" type="button" data-action="admin-remove-hof-award" data-id="${escapeHtml(a.id)}">REMOVE</button></div>`).join(''):'<div class="empty">No official trophies have been awarded yet.</div>';}
 async function loadHofAdmin(){cacheClear('rpc:get_gvg_h');
   try{
@@ -2938,7 +2963,7 @@ function enterGuest(){
   setMemberAccessGate();
   syncRegisterNav();
   openMemberSection('guild-profiles');
-  window.gvgBadgeKick?.();
+  window.gvgBadgeKick?.();window.gvgNotifyKick?.();
 }
 async function restoreGuest(){
   let saved=null; try{saved=JSON.parse(sessionStorage.getItem('gvg_guest')||'null');}catch{}
@@ -3283,6 +3308,149 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   };
 })();
 
+/* ===== v45: RED DOTS =====
+   A red dot shows on the 3-line menu and on the section itself when something is new:
+     CHALLENGES    -> a new open challenge from another player
+     RESULTS       -> a new approved result
+     HALL OF FAME  -> a new weekly and/or monthly champion (the WEEKLY / MONTHLY tab inside also gets its own dot)
+   The dot disappears as soon as the player opens that section (or that tab).
+   Data comes from the same database functions those sections already use; it is re-checked every 3 minutes,
+   only while the page is on screen, and the answers are remembered on the phone (localStorage). */
+(function(){
+  'use strict';
+  const POLL_MS=3*60*1000, STORE='gvg-dots-v1:', MAXIDS=700;
+  const KEYS=['c','r','w','m'];                    // challenges, results, hall of fame weekly, hall of fame monthly
+  const MISSING=/could not find the function|does not exist|PGRST202|42883/i;
+  const mem={};
+  const cur={c:null,r:null,w:null,m:null};         // ids found by the latest check (null = not fetched yet)
+  let dots={c:false,r:false,w:false,m:false};
+  let busy=false,last=0,lastV='';
+
+  function viewer(){
+    if(state.guest) return 'g:'+normalizeGuild(state.guest.guild_name_normalized||state.guest.guild_name);
+    if(state.user&&state.guild&&state.guild.approval_status==='approved') return 'm:'+normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name);
+    return '';
+  }
+  function load(v){try{const raw=localStorage.getItem(STORE+v);if(raw){const o=JSON.parse(raw);if(o&&typeof o==='object')return o;}}catch{}return mem[v]||{};}
+  function save(v,o){mem[v]=o;try{localStorage.setItem(STORE+v,JSON.stringify(o));}catch{}}
+  function reset(){KEYS.forEach(k=>{cur[k]=null;dots[k]=false;});paint();}
+
+  const challengeIds=rows=>(rows||[]).filter(c=>String(c.status||'open')==='open'&&!isMyGuildName(c.guild_name)).map(c=>String(c.id));
+  const resultIds=rows=>(rows||[]).map(r=>String(r.id!=null?r.id:[r.created_at,r.winner_guild,r.loser_guild,r.score].join('|')));
+  const viewing=k=>state.view==='member'&&!document.hidden&&((k==='c'&&state.memberSection==='challenges')||(k==='r'&&state.memberSection==='results'));
+
+  function paint(){
+    const staff=typeof staffMode==='function'&&staffMode();
+    const any=!staff&&(dots.c||dots.r||dots.w||dots.m);
+    const mb=$('nav-menu');
+    if(mb){mb.classList.toggle('has-dot',any);mb.setAttribute('aria-label',any?'Open menu - new updates':'Open menu');}
+    const set=(sel,on)=>document.querySelectorAll(sel).forEach(el=>el.classList.toggle('has-dot',Boolean(on)));
+    set('#member-nav [data-member-section="challenges"]',dots.c);
+    set('#member-nav [data-member-section="results"]',dots.r);
+    set('#member-nav [data-member-section="hall-of-fame"]',dots.w||dots.m);
+    set('.hof-type-tab[data-hof-type="weekly"]',dots.w);
+    set('.hof-type-tab[data-hof-type="monthly"]',dots.m);
+  }
+
+  /* compare what the latest check found with what the player has already seen */
+  function compute(v){
+    const o=load(v);let changed=false;
+    KEYS.forEach(k=>{
+      const ids=cur[k];if(!ids)return;
+      if(!Array.isArray(o[k])){o[k]=ids.slice(-MAXIDS);changed=true;dots[k]=false;return;}   // first time on this phone: nothing old gets a dot
+      const seen=new Set(o[k]);
+      dots[k]=ids.some(id=>!seen.has(id));
+    });
+    if(changed)save(v,o);
+    paint();
+    // the player is looking at that very list right now: refresh it so the new item is really on screen (this also clears the dot)
+    if(dots.c&&viewing('c'))loadSectionCached('member:challenges',loadLiveChallenges,0);
+    if(dots.r&&viewing('r'))loadSectionCached('member:approved-results',loadApprovedResults,0);
+  }
+  function markSeen(k){
+    const v=viewer();
+    if(!v){dots[k]=false;paint();return;}
+    if(cur[k]){
+      const o=load(v);const set=new Set(Array.isArray(o[k])?o[k]:[]);
+      cur[k].forEach(id=>set.add(id));
+      o[k]=[...set].slice(-MAXIDS);save(v,o);
+    }
+    dots[k]=false;paint();
+  }
+
+  /* ---- fetchers (re-use data the sections loaded a moment ago, otherwise one small request each) ---- */
+  async function fetchChallenges(){
+    if(Date.now()-(sectionLoadCache.get('member:challenges')||0)<POLL_MS&&Array.isArray(state.challenges))return challengeIds(state.challenges);
+    let res=await db.rpc('get_gvg_live_challenges_v2');
+    if(res.error&&MISSING.test(String(res.error.message||res.error.code||res.error)))res=await db.rpc('get_gvg_live_challenges');
+    if(res.error||!Array.isArray(res.data))return null;
+    return challengeIds(res.data);
+  }
+  async function fetchResults(){
+    if(Date.now()-(sectionLoadCache.get('member:approved-results')||0)<POLL_MS&&Array.isArray(state.weekResults))return resultIds(state.weekResults);
+    let res=await db.rpc('get_gvg_week_results');
+    if(res.error&&MISSING.test(String(res.error.message||res.error.code||res.error))){
+      res=await db.rpc('get_gvg_approved_results');
+      if(res.error||!Array.isArray(res.data))return null;
+      const ws=gvgWeekStartMs();
+      return resultIds(res.data.filter(r=>Date.parse(r.created_at)>=ws));
+    }
+    if(res.error||!Array.isArray(res.data))return null;
+    return resultIds(res.data);
+  }
+  async function fetchHof(){
+    const st=await readRpc('get_gvg_hof_settings');
+    if(!st||st.error)return null;
+    const s=Array.isArray(st.data)?st.data[0]:st.data;
+    const year=Number(s&&s.season_year)||new Date().getFullYear();
+    const one=async type=>{
+      const res=await readRpc('get_gvg_hall_of_fame',{p_award_type:type,p_award_year:year});
+      if(!res||res.error||!Array.isArray(res.data))return null;
+      return res.data.filter(a=>String(a.award_type||type)===type).map(a=>String(a.id!=null?a.id:`${type}|${a.award_year!=null?a.award_year:year}|${a.period_number}`));
+    };
+    const [w,m]=await Promise.all([one('weekly'),one('monthly')]);
+    return {weekly:w,monthly:m};
+  }
+
+  async function check(){
+    const v=viewer();
+    if(!v){lastV='';reset();return;}
+    if(v!==lastV){lastV=v;reset();}
+    if(busy||document.hidden)return;
+    busy=true;last=Date.now();
+    try{
+      const jobs=[];
+      if(!state.guest){
+        jobs.push(fetchChallenges().then(x=>{if(x)cur.c=x;}));
+        jobs.push(fetchResults().then(x=>{if(x)cur.r=x;}));
+      }
+      jobs.push(fetchHof().then(x=>{if(x){if(x.weekly)cur.w=x.weekly;if(x.monthly)cur.m=x.monthly;}}));
+      await Promise.allSettled(jobs);
+      if(v===viewer())compute(v);
+    }catch(error){console.warn('Red dots check failed:',error);}
+    finally{busy=false;}
+  }
+
+  /* ---- hooks used by the rest of the site ---- */
+  window.gvgNotifyKick=()=>{check();};
+  window.gvgNotifyPaint=paint;
+  window.gvgNotifyLoaded=function(section){      // a list was just (re)loaded
+    const v=viewer();if(!v||state.guest)return;
+    const k=section==='challenges'?'c':'r';
+    cur[k]=k==='c'?challengeIds(state.challenges):resultIds(state.weekResults);
+    if(viewing(k))markSeen(k);else compute(v);
+  };
+  window.gvgNotifySeen=function(section){        // the player opened a section / tab
+    if(section==='challenges')markSeen('c');
+    else if(section==='results')markSeen('r');
+    else if(section==='hall-of-fame')markSeen(state.hofMode==='monthly'?'m':'w');
+    else if(section==='hof:weekly')markSeen('w');
+    else if(section==='hof:monthly')markSeen('m');
+  };
+  setInterval(()=>{if(!document.hidden&&Date.now()-last>=POLL_MS)check();},30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-last>POLL_MS/2)check();});
+})();
+
 
 /* ===== v39: side menu (3 lines), Dashboard, Settings ===== */
 const MEMBER_SECTIONS={
@@ -3291,15 +3459,45 @@ const MEMBER_SECTIONS={
 };
 const GUEST_SECTIONS=['guild-profiles','hall-of-fame','about'];
 
+/* v45: Admin / Moderator sections now live in the same 3-line menu */
+const STAFF_ITEMS={
+  admin:[['guilds','PLAYERS','\u{1F465}'],['name-changes','NAME CHANGE REQUESTS','\u270F\uFE0F'],['results','RESULTS REVIEW','\u2705'],['ban','BAN PLAYER','\u{1F6AB}'],['trophies','HALL OF FAME','\u{1F3C6}'],['rules','RULES EDITOR','\u{1F4DC}']],
+  moderator:[['results','RESULTS REVIEW','\u2705'],['guilds','PLAYERS','\u{1F465}']]
+};
+function staffMode(){
+  if(state.view==='admin'&&state.adminOk) return 'admin';
+  if(state.view==='moderator'&&state.moderatorOk) return 'moderator';
+  return '';
+}
+function staffActiveSection(mode){
+  const sel=mode==='admin'?'[data-admin-section].active':'[data-moderator-section].active';
+  const el=document.querySelector(sel);
+  return el?(mode==='admin'?el.dataset.adminSection:el.dataset.moderatorSection):STAFF_ITEMS[mode][0][0];
+}
+function renderStaffNav(mode){
+  const nav=$('staff-nav'); if(!nav) return;
+  if(!mode){nav.innerHTML='';return;}
+  const act=staffActiveSection(mode);
+  const arrow='<span class="di-arrow" aria-hidden="true">&#8250;</span>';
+  nav.innerHTML=STAFF_ITEMS[mode].map(([key,label,ico])=>{
+    let text=label;
+    if(mode==='admin'&&key==='name-changes'){const t=$('admin-name-change-tab')?.textContent||''; const n=/\((\d+)\)/.exec(t); if(n) text=`NAME CHANGE REQUESTS (${n[1]})`;}
+    return `<button class="drawer-item staff-item${key===act?' active':''}" type="button" data-staff-section="${key}"><span class="di-ico staff-ico" aria-hidden="true">${ico}</span><span class="di-txt">${text}</span>${arrow}</button>`;
+  }).join('');
+}
 function syncMenuButton(){
   const btn=$('nav-menu'); if(!btn) return;
-  const inMember=state.view==='member', show=inMember&&memberDashboardAllowed();
+  const staff=staffMode();
+  const inMember=state.view==='member', show=(inMember&&memberDashboardAllowed())||Boolean(staff);
   btn.classList.toggle('hidden',!show);
   $('nav-moderator')?.classList.toggle('hidden',show);
   document.body.dataset.guest=state.guest?'1':'';
-  const g=$('drawer-guild'); if(g) g.textContent=state.guest?`GUEST • ${state.guest.guild_name}`:(state.guild?.guild_name||'1V1 MENU');
-  const lo=$('drawer-logout'); if(lo) lo.textContent=state.guest?'EXIT GUEST':'LOGOUT';
-  document.querySelectorAll('.drawer-item').forEach(el=>el.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(el.dataset.memberSection)));
+  document.body.dataset.drawer=staff||'member';
+  renderStaffNav(staff);
+  const g=$('drawer-guild'); if(g) g.textContent=staff?(staff==='admin'?'ADMIN MENU':'MODERATOR MENU'):(state.guest?`GUEST \u2022 ${state.guest.guild_name}`:(state.guild?.guild_name||'1V1 MENU'));
+  const lo=$('drawer-logout'); if(lo) lo.textContent=staff?(staff==='admin'?'ADMIN LOGOUT':'MODERATOR LOGOUT'):(state.guest?'EXIT GUEST':'LOGOUT');
+  document.querySelectorAll('#member-nav .drawer-item').forEach(el=>el.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(el.dataset.memberSection)));
+  window.gvgNotifyPaint?.();
 }
 function openDrawer(){
   const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk) return;
@@ -3322,7 +3520,19 @@ function closeDrawer({silent=false,fromPop=false}={}){
 $('nav-menu')?.addEventListener('click',()=>($('side-drawer')?.classList.contains('open')?closeDrawer():openDrawer()));
 $('drawer-close')?.addEventListener('click',()=>closeDrawer());
 $('drawer-backdrop')?.addEventListener('click',()=>closeDrawer());
-$('drawer-logout')?.addEventListener('click',()=>{closeDrawer({silent:true});$('nav-logout')?.click();});
+$('drawer-logout')?.addEventListener('click',()=>{
+  closeDrawer({silent:true});
+  const m=staffMode();
+  if(m==='admin') $('admin-logout')?.click();
+  else if(m==='moderator') $('moderator-logout')?.click();
+  else $('nav-logout')?.click();
+});
+$('staff-nav')?.addEventListener('click',e=>{
+  const b=e.target.closest?.('[data-staff-section]'); if(!b) return;
+  const m=staffMode(); if(!m) return;
+  closeDrawer({silent:true});
+  if(m==='admin') openAdminSection(b.dataset.staffSection); else openModeratorSection(b.dataset.staffSection);
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeDrawer();});
 (function(){ /* swipe left on the open menu to close it */
   let x0=null;

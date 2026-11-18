@@ -1261,3 +1261,72 @@ h3,.hub-name,.ranking-view-head h4,.app-dialog-title,.moderator-guild-name{text-
   background:linear-gradient(180deg,#1a8d22 0%,#0d5c12 50%,#073e0a 100%);
   box-shadow:inset 0 1px 0 rgba(160,255,167,.45),inset 0 -2px 0 rgba(0,0,0,.45),0 4px 0 #042a06,0 9px 16px rgba(0,0,0,.55),0 0 16px rgba(60,255,74,.3)}
 .btn-dk-green:hover{background:linear-gradient(180deg,#20a829 0%,#116e17 50%,#084a0c 100%);color:#fff}
+
+/* ==========================================================================
+   v45  -  red dots, Admin/Moderator 3-line menu, player tables, badge tabs, footer
+   ========================================================================== */
+:root{--dot:#ff2d46}
+
+/* 1. Red dots (static: this site blocks CSS animation on purpose) */
+.menu-btn.has-dot::after{content:"";position:absolute;top:5px;right:5px;z-index:2;width:14px;height:14px;border-radius:50%;background:var(--dot);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 10px rgba(255,45,70,.95)}
+.drawer-item.has-dot .di-txt::after{content:"";display:inline-block;width:11px;height:11px;margin-left:9px;vertical-align:middle;border-radius:50%;background:var(--dot);box-shadow:0 0 0 2px rgba(0,0,0,.55),0 0 9px rgba(255,45,70,.95)}
+.hof-type-tab{position:relative}
+.hof-type-tab.has-dot::after{content:"";position:absolute;top:7px;right:9px;width:12px;height:12px;border-radius:50%;background:var(--dot);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 9px rgba(255,45,70,.95)}
+
+/* 2. Admin + Moderator sections moved into the 3-line menu (old tab bars stay in the page but are hidden) */
+.admin-tabs,.moderator-section-tabs{display:none!important}
+#staff-nav{display:none}
+body[data-drawer="admin"] #member-nav,body[data-drawer="moderator"] #member-nav{display:none}
+body[data-drawer="admin"] #staff-nav,body[data-drawer="moderator"] #staff-nav{display:grid}
+.staff-item .di-txt{line-height:1.25}
+.staff-ico{font-size:17px;line-height:1}
+
+/* 3. Players list: the ⋮ menu no longer gets cut off ("D INFO" bug). It opens inside the row instead of floating. */
+.admin-table .guild-row{flex-wrap:wrap}
+.admin-table .guild-main{flex:1 1 0;min-width:0}
+.admin-table .guild-main strong,.admin-table .guild-main span{overflow-wrap:anywhere}
+.admin-table .menu-wrap{display:contents}
+.admin-table .dots-btn{flex:0 0 auto}
+.admin-table .dots-menu{position:static;order:3;flex:0 0 100%;width:100%;margin-top:4px;box-shadow:none}
+.admin-table .dots-menu button{min-height:44px}
+
+/* Moderator players list: cards on phones (name + status on top, big action buttons below) */
+@media(max-width:760px){
+  .moderator-table{display:block;width:100%}
+  .moderator-table thead{display:none}
+  #moderator-guild-table{display:grid;gap:12px;padding:12px}
+  #moderator-guild-table>tr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid rgba(120,255,131,.26);border-radius:14px;background:linear-gradient(180deg,#122a13,#0b170b);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 0 #020702}
+  #moderator-guild-table>tr>td{display:block;min-width:0;padding:0;border:0}
+  #moderator-guild-table>tr>td[colspan]{grid-column:1/-1}
+  #moderator-guild-table>tr>td:nth-child(3){grid-column:1/-1;padding-top:12px;border-top:1px solid var(--b-1)}
+  #moderator-guild-table .moderator-guild-name{overflow-wrap:anywhere;font-size:20px}
+  #moderator-guild-table .moderator-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0}
+}
+
+/* 4. Badge tabs: PLATINUM / DIAMOND fit on small phones; a missing picture never shows the broken-image icon */
+.ach-tabs{gap:4px}
+.ach-tab{padding:9px 1px;font-size:clamp(7.5px,2.2vw,9.5px);letter-spacing:.01em}
+.ach-tab b{font-size:13px}
+img.img-missing{visibility:hidden}
+
+/* 5. Footer (V2.0): centred and tidy on every screen */
+.footer{padding:26px 0 calc(38px + env(safe-area-inset-bottom,0px))}
+.footer-inner{justify-content:center;text-align:center}
+.version-chip{font-weight:800;letter-spacing:.14em;white-space:nowrap}
+@media(max-width:640px){
+  .footer-inner{flex-direction:column;gap:10px}
+}
+
+/* v45.1: weapon / skill / PC / type tiles - every picture is the SAME square.
+   Cause of the uneven squares: columns were 1fr, so a long label (WOODPECKER) widened its column and that tile's picture grew.
+   Now every column is exactly equal, labels shrink to fit one line, and a short last row is centred. */
+.ff-grid-5,.ff-grid-3{grid-template-columns:repeat(6,minmax(0,1fr))}
+.ff-grid-5 .ff-tile,.ff-grid-3 .ff-tile{grid-column:span 2}
+.ff-grid-5 .ff-tile:nth-child(3n+1):nth-last-child(2),.ff-grid-3 .ff-tile:nth-child(3n+1):nth-last-child(2){grid-column:2/span 2}
+.ff-grid-5 .ff-tile:nth-child(3n+1):last-child,.ff-grid-3 .ff-tile:nth-child(3n+1):last-child{grid-column:3/span 2}
+.ff-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ff-tile{min-width:0;grid-template-rows:auto 1fr}
+.ff-tile .ff-pic{width:100%;aspect-ratio:1}
+.ff-tile .ff-img{border-radius:10px}
+.ff-tile .ff-name{align-self:center;max-width:100%;overflow-wrap:anywhere;font-size:clamp(9px,2.9vw,12px);letter-spacing:.03em}
+.ff-grid-2 .ff-tile .ff-name{font-size:clamp(10px,3.2vw,13px)}
