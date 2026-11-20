@@ -1362,7 +1362,7 @@ async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your player is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited';
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;window.gvgNotifySound?.('challenge');showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
@@ -1373,7 +1373,7 @@ async function handleResultSubmit(e){
   try{setBusy('result-submit',true);const urls=await uploadResultImages(files);
     // Upload exactly one proof file. The existing production RPC may enforce its legacy 2-slot array; repeat the same URL as a compatibility pointer, never upload a second image.
     const proofUrls=urls.length===1?[urls[0],urls[0]]:urls;
-    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;window.gvgNotifySound?.('result');showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
 }
 
 async function loadMyResultSubmissions(){
@@ -1637,11 +1637,29 @@ async function refreshAdmin(){
 }
 function guildStatusLabel(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'BANNED'; return String(g.approval_status||'').toUpperCase(); }
 function guildStatusClass(g){ if(g.is_banned || (g.ban_until&&new Date(g.ban_until)>new Date()))return 'status-banned'; if(g.approval_status==='approved')return 'status-approved'; if(g.approval_status==='pending')return 'status-pending'; return 'status-rejected'; }
-function filteredGuilds(){const q=($('admin-guild-search').value||'').trim().toLowerCase();if(!q)return state.guilds;return state.guilds.filter(g=>[g.guild_name,g.contact,g.approval_status,g.email_list].some(v=>String(v||'').toLowerCase().includes(q)));}
+function filteredGuilds(){const q=($('admin-guild-search').value||'').trim().toLowerCase();const rest=state.guilds.filter(g=>String(g.approval_status)!=='pending');   /* v46: waiting players show only in PLAYER REVIEW, never twice */
+  if(!q)return rest;return rest.filter(g=>[g.guild_name,g.contact,g.approval_status,g.email_list].some(v=>String(v||'').toLowerCase().includes(q)));}
 function guildMenu(g){return `<div class="menu-wrap"><button class="dots-btn" type="button" data-menu-button="${escapeHtml(g.id)}">⋮</button><div class="dots-menu" id="menu-${escapeHtml(g.id)}"><button type="button" data-action="guild-info" data-id="${escapeHtml(g.id)}">PLAYER INFO</button><button type="button" data-action="guild-edit" data-id="${escapeHtml(g.id)}">EDIT</button><button class="danger" type="button" data-action="guild-remove" data-id="${escapeHtml(g.id)}">REMOVE PLAYER</button></div></div>`;}
-function renderGuildTable(targetId,rows){const target=$(targetId);if(!target)return;target.innerHTML=rows.length?rows.map(g=>`<tr><td><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div>${guildMenu(g)}</div></td><td><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span></td></tr>`).join(''):'<tr><td colspan="2">No matching players.</td></tr>';}
+function pendingGuildRow(g){
+  return `<tr class="pending-row"><td colspan="2"><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span>${guildMenu(g)}</div><div class="pending-actions"><button class="btn btn-green btn-small" type="button" data-action="player-approve" data-id="${escapeHtml(g.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="player-reject" data-id="${escapeHtml(g.id)}">&#10005; REJECT</button></div></td></tr>`;
+}
+function renderGuildTable(targetId,rows,emptyText){
+  const target=$(targetId);if(!target)return;
+  const pending=targetId==='pending-guild-table';
+  target.innerHTML=rows.length?rows.map(g=>pending?pendingGuildRow(g):`<tr><td><div class="guild-row"><div class="guild-main"><strong>${escapeHtml(g.guild_name)}</strong><span>${escapeHtml(g.leader_count)} leader(s)</span></div>${guildMenu(g)}</div></td><td><span class="status-pill ${guildStatusClass(g)}">${escapeHtml(guildStatusLabel(g))}</span></td></tr>`).join(''):`<tr><td colspan="2">${escapeHtml(emptyText||'No matching players.')}</td></tr>`;
+}
+/* v46: approve / reject a waiting player straight from the list, with a YES / NO question first */
+async function adminQuickPlayerReview(guildId,approve){
+  const g=findGuild(guildId);if(!g)return;
+  const leaders=leaderArray(g);
+  const target=leaders.find(l=>String(l.approval_status||'pending')==='pending')||leaders[0];
+  if(!target)return showStatus('admin-status','error','This player has no linked account to review.');
+  const yes=await appConfirm(approve?`Are you sure you want to approve this player?\n\n${g.guild_name}`:`Are you sure you want to reject this player?\n\n${g.guild_name}`,{title:approve?'Approve player':'Reject player',confirmText:'YES',cancelText:'NO',danger:!approve});
+  if(!yes)return;
+  return setLeaderApproval(target.id,approve?'approved':'rejected');
+}
 async function loadAdminGuilds(){
-  try{const {data,error}=await adminDb.rpc('admin_get_guild_directory');if(error)throw error;state.guilds=data||[];const pending=state.guilds.filter(g=>String(g.approval_status)==='pending');renderGuildTable('pending-guild-table',pending);renderGuildTable('all-guild-table',filteredGuilds());}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_guild_directory');if(error)throw error;state.guilds=data||[];const pending=state.guilds.filter(g=>String(g.approval_status)==='pending');renderGuildTable('pending-guild-table',pending,'No new players waiting for review.');renderGuildTable('all-guild-table',filteredGuilds());window.gvgStaffRecount?.('guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 function leaderArray(g){ try{return Array.isArray(g.leaders)?g.leaders:(typeof g.leaders==='string'?JSON.parse(g.leaders):[]);}catch{return [];} }
 function findGuild(id){return state.guilds.find(g=>g.id===id)||null;}
@@ -1789,7 +1807,7 @@ function preferredResultProofUrls(imageUrls){
 }
 
 async function loadAdminResults(){
-  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td class="mr-statuscell"><div class="mr-proof">${gallery}</div><div class="mr-status"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">&#10005; REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
+  try{const {data,error}=await adminDb.rpc('admin_get_results');if(error)throw error;const rows=data||[];state.results=rows;window.gvgStaffRecount?.('results');const target=$('admin-result-table');target.innerHTML=rows.length?rows.map(r=>{const imgs=preferredResultProofUrls(r.image_urls);const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';return `<tr><td class="mr-match"><div class="mr-team win"><span class="mr-tag">WIN</span><strong>${escapeHtml(r.winner_guild)}</strong></div><div class="mr-team loss"><span class="mr-tag">DEFEAT</span><strong>${escapeHtml(r.loser_guild)}</strong></div></td><td>${escapeHtml(r.score)}</td><td><strong class="cell-time">${escapeHtml(formatDateTime(r.created_at))}</strong><div class="muted cell-note">PAKISTAN TIME</div></td><td class="mr-statuscell"><div class="mr-proof">${gallery}</div><div class="mr-status"><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='pending'?'status-pending':'status-rejected'}">${escapeHtml(r.status)}</span></div></td><td>${r.status==='pending'?`<div class="moderator-actions"><button class="btn btn-green btn-small" type="button" data-action="approve-result" data-id="${escapeHtml(r.id)}">&#10003; APPROVE</button><button class="btn btn-red btn-small" type="button" data-action="reject-result" data-id="${escapeHtml(r.id)}">&#10005; REJECT</button></div>`:'—'}</td></tr>`;}).join(''):'<tr><td colspan="5">No result submissions.</td></tr>';}catch(error){showStatus('admin-status','error',humanizeError(error));}
 }
 async function approveResult(id){try{const {error}=await adminDb.rpc('admin_approve_result',{p_result_id:id});if(error)throw error;invalidateResultViewCaches();showStatus('admin-status','ok','Result approved. The database point-award function completed; rankings will reload on the next member view. WhatsApp delivery is handled by the webhook bridge.');clearSectionCache('admin:');await Promise.all([loadAdminResults(),loadAdminGuilds()]);markSectionLoaded('admin:results');markSectionLoaded('admin:guilds');}catch(error){showStatus('admin-status','error',humanizeError(error));}}
 async function rejectResult(id){
@@ -1923,7 +1941,7 @@ async function loadModeratorGuilds(){
   try{
     if(target)target.innerHTML='<tr><td colspan="3">Loading players...</td></tr>';
     const {data,error}=await moderatorDb.rpc('moderator_get_guild_directory');if(error)throw error;
-    state.moderatorGuilds=data||[];renderModeratorGuilds();
+    state.moderatorGuilds=data||[];renderModeratorGuilds();window.gvgStaffRecount?.('guilds');
   }catch(error){console.error(error);showStatus('moderator-guild-status','error',humanizeError(error));}
 }
 async function loadModeratorResults(){
@@ -1931,7 +1949,7 @@ async function loadModeratorResults(){
   target.innerHTML='<tr><td colspan="5">Loading result submissions...</td></tr>';
   try{
     const {data,error}=await moderatorDb.rpc('moderator_get_results');if(error)throw error;
-    const rows=data||[];state.moderatorResults=rows;
+    const rows=data||[];state.moderatorResults=rows;window.gvgStaffRecount?.('results');
     target.innerHTML=rows.length?rows.map(r=>{
       const imgs=preferredResultProofUrls(r.image_urls);
       const gallery=imgs.length?`<details class="proof-details"><summary>OPEN RESULT PROOF</summary><div class="proof-gallery">${imgs.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><span class="proof-tag">RESULT PROOF</span><img data-proof-src="${escapeHtml(u)}" loading="lazy" decoding="async" alt="${escapeHtml(r.winner_guild)} vs ${escapeHtml(r.loser_guild)} result proof" /></a>`).join('')}</div></details>`:'<span class="muted">No proof</span>';
@@ -2439,19 +2457,26 @@ async function submitGuildNameChangeRequest(e){
 function renderAdminGuildNameChangeRequests(){
   const target=$('admin-name-change-list');if(!target)return;
   const rows=state.guildNameChangeRequests||[];
-  const tab=$('admin-name-change-tab');if(tab)tab.textContent=`NAME CHANGE REQUESTS (${rows.length})`;
+  const tab=$('admin-name-change-tab');if(tab)tab.textContent='NAME CHANGE REQUESTS';
   target.innerHTML=rows.length?rows.map(r=>`<article class="challenge-card"><div class="meta-row"><div><div class="kicker">Pending approval</div><div class="name">${escapeHtml(r.current_guild_name||'Guild')} → ${escapeHtml(r.requested_guild_name||'New name')}</div><div class="subtle">Requested: ${escapeHtml(formatDateTime(r.requested_at))} PKT</div><div class="subtle">Request ID: ${escapeHtml(String(r.id||'').slice(0,8))}</div></div><span class="status-pill status-pending">PENDING</span></div><div class="divider"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-green btn-small" type="button" data-action="approve-guild-name-change" data-id="${escapeHtml(r.id)}">APPROVE NAME</button><button class="btn btn-red btn-small" type="button" data-action="reject-guild-name-change" data-id="${escapeHtml(r.id)}">REJECT REQUEST</button></div></article>`).join(''):'<div class="empty">No pending player name-change requests.</div>';
 }
 async function loadAdminGuildNameChangeRequests(){
   const target=$('admin-name-change-list');if(target)target.innerHTML='<div class="empty">Loading name-change requests...</div>';
-  try{const {data,error}=await adminDb.rpc('admin_get_gvg_guild_name_change_requests');if(error)throw error;state.guildNameChangeRequests=data||[];renderAdminGuildNameChangeRequests();}
+  try{const {data,error}=await adminDb.rpc('admin_get_gvg_guild_name_change_requests');if(error)throw error;state.guildNameChangeRequests=data||[];renderAdminGuildNameChangeRequests();window.gvgStaffRecount?.('names');}
   catch(error){if(target)target.innerHTML=`<div class="empty">Could not load requests: ${escapeHtml(humanizeError(error))}</div>`;console.error('Name-change requests failed:',error);}
 }
 async function reviewGuildNameChangeRequest(id,approve){
   const request=(state.guildNameChangeRequests||[]).find(r=>String(r.id)===String(id));if(!request)return;
   const decision=approve?'APPROVE':'REJECT';
-  const reason=await appPrompt(approve?`Add an optional note for ${request.current_guild_name} → ${request.requested_guild_name}.`:`Enter the reason for rejecting ${request.current_guild_name} → ${request.requested_guild_name}.`,approve?'':'Name-change request not approved.',{title:approve?'Approve player name change':'Reject player name change',confirmText:approve?'APPROVE NAME':'REJECT REQUEST',placeholder:approve?'Optional admin note':'Reason for rejection',required:!approve,danger:!approve});
-  if(reason===null)return;
+  let reason='';
+  if(approve){
+    const yes=await appConfirm(`Are you sure you want to approve this name change?\n\n${request.current_guild_name} → ${request.requested_guild_name}`,{title:'Approve name change',confirmText:'YES',cancelText:'NO'});
+    if(!yes)return;
+  }else{
+    const typed=await appPrompt(`Enter the reason for rejecting ${request.current_guild_name} → ${request.requested_guild_name}.`,'Name-change request not approved.',{title:'Reject player name change',confirmText:'REJECT REQUEST',placeholder:'Reason for rejection',required:true,danger:true});
+    if(typed===null)return;
+    reason=typed;
+  }
   try{const {error}=await adminDb.rpc('admin_review_gvg_guild_name_change',{p_request_id:id,p_approve:approve,p_reason:reason.trim()||null});if(error)throw error;
     if(approve)invalidateGuildDirectoryCaches();
     showStatus('admin-name-change-status','ok',approve?`Player name approved: ${request.current_guild_name} is now ${request.requested_guild_name}.`:'Player name-change request rejected.');
@@ -2665,7 +2690,7 @@ document.addEventListener('toggle',(event)=>{
 
 document.addEventListener('click',async(e)=>{
   const actionEl=e.target.closest('[data-action]');
-  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);renderHallSelectedAward();return openHallOfFamePeriodDetails();}if(action==='hof-open-details')return openHallOfFamePeriodDetails();if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
+  if(actionEl){const action=actionEl.dataset.action,id=actionEl.dataset.id;if(action==='result-from-challenge')return selectChallengeForResult(id);if(action==='close-modal')return closeModal();if(action==='guild-info'){const g=findGuild(id);if(g)adminGuildInfo(g);return;}if(action==='guild-edit'){const g=findGuild(id);if(g)adminGuildEdit(g);return;}if(action==='guild-remove')return removeGuild(id);if(action==='approve-leader')return setLeaderApproval(id,'approved');if(action==='reject-leader')return setLeaderApproval(id,'rejected');if(action==='remove-leader')return removeLeader(id,actionEl.dataset.guild||'');if(action==='reset-password')return resetLeaderPassword(actionEl.dataset.email||'');if(action==='approve-result')return approveResult(id);if(action==='reject-result')return rejectResult(id);if(action==='unban-identity')return unbanIdentity(actionEl.dataset.guild||'',actionEl.dataset.contact||'');if(action==='mod-approve-guild')return moderatorApproveGuild(actionEl.dataset.guild||'');if(action==='mod-remove-guild')return moderatorRemoveGuild(actionEl.dataset.guild||'');if(action==='mod-approve-result')return moderatorApproveResult(id);if(action==='mod-reject-result')return moderatorRejectResult(id);if(action==='open-public-guild-profile')return openPublicGuildProfile(actionEl.dataset.guild||'');if(action==='hof-select-year'){state.hofYear=Number(actionEl.dataset.year);state.hofPeriod=1;renderHofYearGrid(state.hofYears||[]);return loadHallOfFameYear();}if(action==='hof-select-period'){state.hofPeriod=Number(actionEl.dataset.period);renderHallSelectedAward();return openHallOfFamePeriodDetails();}if(action==='hof-open-details')return openHallOfFamePeriodDetails();if(action==='admin-remove-hof-award')return removeHofAward(id);if(action==='player-approve')return adminQuickPlayerReview(id,true);if(action==='player-reject')return adminQuickPlayerReview(id,false);if(action==='approve-guild-name-change')return reviewGuildNameChangeRequest(id,true);if(action==='reject-guild-name-change')return reviewGuildNameChangeRequest(id,false);}
   const menuBtn=e.target.closest('[data-menu-button]');if(menuBtn){const id=menuBtn.dataset.menuButton;document.querySelectorAll('.dots-menu.open').forEach(x=>{if(x.id!==`menu-${id}`)x.classList.remove('open')});document.getElementById(`menu-${id}`)?.classList.toggle('open');return;}document.querySelectorAll('.dots-menu.open').forEach(x=>x.classList.remove('open'));
 });
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-member-section]');if(b)openMemberSection(b.dataset.memberSection);});
@@ -3324,6 +3349,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   const mem={};
   const cur={c:null,r:null,w:null,m:null};         // ids found by the latest check (null = not fetched yet)
   let dots={c:false,r:false,w:false,m:false};
+  let counts={c:0,r:0,w:0,m:0};
   let busy=false,last=0,lastV='';
 
   function viewer(){
@@ -3333,49 +3359,60 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   }
   function load(v){try{const raw=localStorage.getItem(STORE+v);if(raw){const o=JSON.parse(raw);if(o&&typeof o==='object')return o;}}catch{}return mem[v]||{};}
   function save(v,o){mem[v]=o;try{localStorage.setItem(STORE+v,JSON.stringify(o));}catch{}}
-  function reset(){KEYS.forEach(k=>{cur[k]=null;dots[k]=false;});paint();}
+  function reset(){KEYS.forEach(k=>{cur[k]=null;dots[k]=false;counts[k]=0;});paint();}
 
   const challengeIds=rows=>(rows||[]).filter(c=>String(c.status||'open')==='open'&&!isMyGuildName(c.guild_name)).map(c=>String(c.id));
   const resultIds=rows=>(rows||[]).map(r=>String(r.id!=null?r.id:[r.created_at,r.winner_guild,r.loser_guild,r.score].join('|')));
   const viewing=k=>state.view==='member'&&!document.hidden&&((k==='c'&&state.memberSection==='challenges')||(k==='r'&&state.memberSection==='results'));
 
   function paint(){
-    const staff=typeof staffMode==='function'&&staffMode();
-    const any=!staff&&(dots.c||dots.r||dots.w||dots.m);
+    const staff=typeof staffMode==='function'?staffMode():'';
+    const sp=window.gvgStaffPend||{guilds:0,names:0,results:0};
+    const any=staff?(sp.guilds+sp.names+sp.results>0):(dots.c||dots.r||dots.w||dots.m);
     const mb=$('nav-menu');
-    if(mb){mb.classList.toggle('has-dot',any);mb.setAttribute('aria-label',any?'Open menu - new updates':'Open menu');}
+    if(mb){mb.classList.toggle('has-dot',Boolean(any));mb.setAttribute('aria-label',any?'Open menu - new updates':'Open menu');}
     const set=(sel,on)=>document.querySelectorAll(sel).forEach(el=>el.classList.toggle('has-dot',Boolean(on)));
     set('#member-nav [data-member-section="challenges"]',dots.c);
     set('#member-nav [data-member-section="results"]',dots.r);
     set('#member-nav [data-member-section="hall-of-fame"]',dots.w||dots.m);
     set('.hof-type-tab[data-hof-type="weekly"]',dots.w);
     set('.hof-type-tab[data-hof-type="monthly"]',dots.m);
+    set('#staff-nav [data-staff-section="guilds"]',staff&&sp.guilds>0);
+    set('#staff-nav [data-staff-section="name-changes"]',staff==='admin'&&sp.names>0);
+    set('#staff-nav [data-staff-section="results"]',staff&&sp.results>0);
   }
 
   /* compare what the latest check found with what the player has already seen */
   function compute(v){
     const o=load(v);let changed=false;
+    const prev={...counts};
     KEYS.forEach(k=>{
       const ids=cur[k];if(!ids)return;
-      if(!Array.isArray(o[k])){o[k]=ids.slice(-MAXIDS);changed=true;dots[k]=false;return;}   // first time on this phone: nothing old gets a dot
+      if(!Array.isArray(o[k])){o[k]=ids.slice(-MAXIDS);changed=true;counts[k]=0;dots[k]=false;return;}   // first time on this phone: nothing old gets a dot
       const seen=new Set(o[k]);
-      dots[k]=ids.some(id=>!seen.has(id));
+      counts[k]=ids.filter(id=>!seen.has(id)).length;
+      dots[k]=counts[k]>0;
     });
     if(changed)save(v,o);
     paint();
+    // sound: a different one for a new challenge and for a new approved result (only when more unseen items than before)
+    if(!document.hidden&&!state.guest){
+      if(counts.c>prev.c)window.gvgNotifySound?.('challenge');
+      if(counts.r>prev.r)setTimeout(()=>window.gvgNotifySound?.('result'),counts.c>prev.c?1300:0);
+    }
     // the player is looking at that very list right now: refresh it so the new item is really on screen (this also clears the dot)
     if(dots.c&&viewing('c'))loadSectionCached('member:challenges',loadLiveChallenges,0);
     if(dots.r&&viewing('r'))loadSectionCached('member:approved-results',loadApprovedResults,0);
   }
   function markSeen(k){
     const v=viewer();
-    if(!v){dots[k]=false;paint();return;}
+    if(!v){dots[k]=false;counts[k]=0;paint();return;}
     if(cur[k]){
       const o=load(v);const set=new Set(Array.isArray(o[k])?o[k]:[]);
       cur[k].forEach(id=>set.add(id));
       o[k]=[...set].slice(-MAXIDS);save(v,o);
     }
-    dots[k]=false;paint();
+    dots[k]=false;counts[k]=0;paint();
   }
 
   /* ---- fetchers (re-use data the sections loaded a moment ago, otherwise one small request each) ---- */
@@ -3451,6 +3488,90 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-last>POLL_MS/2)check();});
 })();
 
+/* ===== v46: red dots for Admin / Moderator =====
+   A dot on the 3-line menu and on PLAYERS / NAME CHANGE REQUESTS / RESULTS REVIEW while something is waiting for review.
+   It goes away by itself when nothing is pending any more. Checked every 4 minutes, only while the staff panel is on screen. */
+(function(){
+  'use strict';
+  const POLL_MS=4*60*1000;
+  const pend={guilds:0,names:0,results:0};
+  const stamp={guilds:0,names:0,results:0};
+  window.gvgStaffPend=pend;
+  let last=0,busy=false,lastMode='';
+  const isPending=v=>String(v||'').toLowerCase()==='pending';
+  const mode=()=>typeof staffMode==='function'?staffMode():'';
+
+  window.gvgStaffRecount=function(key){        // called right after a list was loaded / changed: no extra request
+    const m=mode();
+    if(key==='guilds'){
+      const rows=m==='moderator'?state.moderatorGuilds:state.guilds;
+      pend.guilds=(rows||[]).filter(g=>isPending(g.approval_status)).length;
+    }else if(key==='names'){
+      pend.names=(state.guildNameChangeRequests||[]).filter(r=>!r.request_status||isPending(r.request_status)).length;
+    }else if(key==='results'){
+      const rows=m==='moderator'?state.moderatorResults:state.results;
+      pend.results=(rows||[]).filter(r=>isPending(r.status)).length;
+    }
+    stamp[key]=Date.now();
+    window.gvgNotifyPaint?.();
+  };
+
+  async function check(){
+    const m=mode();
+    if(!m){lastMode='';pend.guilds=pend.names=pend.results=0;stamp.guilds=stamp.names=stamp.results=0;window.gvgNotifyPaint?.();return;}
+    if(m!==lastMode){lastMode=m;pend.guilds=pend.names=pend.results=0;stamp.guilds=stamp.names=stamp.results=0;}
+    if(busy||document.hidden)return;
+    busy=true;last=Date.now();
+    try{
+      const fresh=k=>Date.now()-stamp[k]<POLL_MS;
+      const db2=m==='admin'?adminDb:moderatorDb;
+      const calls=[];
+      const run=(key,rpc,apply)=>{if(fresh(key))return;calls.push(db2.rpc(rpc).then(res=>{if(res.error||!Array.isArray(res.data))return;apply(res.data);stamp[key]=Date.now();}));};
+      run('guilds',m==='admin'?'admin_get_guild_directory':'moderator_get_guild_directory',rows=>{pend.guilds=rows.filter(g=>isPending(g.approval_status)).length;});
+      run('results',m==='admin'?'admin_get_results':'moderator_get_results',rows=>{pend.results=rows.filter(r=>isPending(r.status)).length;});
+      if(m==='admin')run('names','admin_get_gvg_guild_name_change_requests',rows=>{pend.names=rows.filter(r=>!r.request_status||isPending(r.request_status)).length;});
+      await Promise.allSettled(calls);
+    }catch(error){console.warn('Staff dots check failed:',error);}
+    finally{busy=false;window.gvgNotifyPaint?.();}
+  }
+  window.gvgStaffKick=()=>{setTimeout(check,2500);};   // short wait: the section that opens at login loads its own list first
+  setInterval(()=>{if(mode()&&!document.hidden&&Date.now()-last>=POLL_MS)check();},30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&mode()&&Date.now()-last>POLL_MS/2)check();});
+})();
+
+/* ===== v46: SETTINGS = short list of buttons =====
+   Profile / Change password / Display title / Delete account are folded behind one button each.
+   Tap the button (or the title) to open it, tap again to hide it. Only one is open at a time. */
+(function(){
+  'use strict';
+  const LABELS={'my-profile-card':['EDIT PROFILE','HIDE'],'password-card':['CHANGE PASSWORD','HIDE'],'title-card':['CHANGE TITLE','HIDE'],'danger':['DELETE ACCOUNT','HIDE']};
+  function init(){
+    const stack=document.querySelector('#member-section-settings .settings-stack');
+    if(!stack||stack.dataset.acc)return;
+    stack.dataset.acc='1';
+    const cards=[...stack.querySelectorAll(':scope > .card')].filter(c=>!c.classList.contains('about-card'));
+    const closeCard=card=>{const b=card.querySelector(':scope > .set-body');if(!b)return;b.hidden=true;card.classList.remove('set-open');const t=card.querySelector('.set-toggle');if(t){t.textContent=t.dataset.open;t.setAttribute('aria-expanded','false');}};
+    cards.forEach(card=>{
+      const head=card.querySelector(':scope > .panel-head');if(!head)return;
+      const body=document.createElement('div');body.className='set-body';body.hidden=true;
+      [...card.children].forEach(ch=>{if(ch!==head)body.appendChild(ch);});
+      card.appendChild(body);
+      const key=card.id||(card.classList.contains('danger-zone')?'danger':'');
+      const [openTxt,closeTxt]=LABELS[key]||['OPEN','HIDE'];
+      const btn=document.createElement('button');btn.type='button';btn.className='set-toggle';btn.textContent=openTxt;btn.dataset.open=openTxt;btn.dataset.close=closeTxt;btn.setAttribute('aria-expanded','false');
+      head.appendChild(btn);
+      head.addEventListener('click',()=>{
+        const open=body.hidden;
+        cards.forEach(c=>{if(c!==card)closeCard(c);});
+        body.hidden=!open;card.classList.toggle('set-open',open);
+        btn.textContent=open?closeTxt:openTxt;btn.setAttribute('aria-expanded',open?'true':'false');
+        if(open)setTimeout(()=>{try{card.scrollIntoView({block:'nearest',behavior:'smooth'});}catch{}},40);
+      });
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+
 
 /* ===== v39: side menu (3 lines), Dashboard, Settings ===== */
 const MEMBER_SECTIONS={
@@ -3480,10 +3601,10 @@ function renderStaffNav(mode){
   const act=staffActiveSection(mode);
   const arrow='<span class="di-arrow" aria-hidden="true">&#8250;</span>';
   nav.innerHTML=STAFF_ITEMS[mode].map(([key,label,ico])=>{
-    let text=label;
-    if(mode==='admin'&&key==='name-changes'){const t=$('admin-name-change-tab')?.textContent||''; const n=/\((\d+)\)/.exec(t); if(n) text=`NAME CHANGE REQUESTS (${n[1]})`;}
+    const text=label;
     return `<button class="drawer-item staff-item${key===act?' active':''}" type="button" data-staff-section="${key}"><span class="di-ico staff-ico" aria-hidden="true">${ico}</span><span class="di-txt">${text}</span>${arrow}</button>`;
   }).join('');
+  window.gvgNotifyPaint?.();
 }
 function syncMenuButton(){
   const btn=$('nav-menu'); if(!btn) return;
@@ -3498,6 +3619,7 @@ function syncMenuButton(){
   const lo=$('drawer-logout'); if(lo) lo.textContent=staff?(staff==='admin'?'ADMIN LOGOUT':'MODERATOR LOGOUT'):(state.guest?'EXIT GUEST':'LOGOUT');
   document.querySelectorAll('#member-nav .drawer-item').forEach(el=>el.classList.toggle('hidden',Boolean(state.guest)&&!GUEST_SECTIONS.includes(el.dataset.memberSection)));
   window.gvgNotifyPaint?.();
+  if(staff)window.gvgStaffKick?.();
 }
 function openDrawer(){
   const d=$('side-drawer'),bk=$('drawer-backdrop'),btn=$('nav-menu'); if(!d||!bk) return;
@@ -3686,6 +3808,26 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     click(t0.el.matches('.btn-primary,.btn-gold,.gs-btn.active,.wa-btn,.social-btn'));
     if(soundOn&&navigator.vibrate&&e.pointerType==='touch'){try{navigator.vibrate(8);}catch{}}
   },{passive:true});
+
+  /* v46: notification sounds (made in the browser, no files).
+     CHALLENGE = sharp double "ding-ding" alert, RESULT = warm rising chime. Both follow the SOUND ON / OFF switch. */
+  function tone(c,freq,start,dur,type,vol){
+    const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(freq,start);
+    g.gain.setValueAtTime(0.0001,start);g.gain.exponentialRampToValueAtTime(vol,start+0.012);g.gain.exponentialRampToValueAtTime(0.0001,start+dur);
+    o.connect(g);g.connect(c.destination);o.start(start);o.stop(start+dur+0.03);
+  }
+  function notifySound(kind){
+    if(!soundOn) return;
+    const c=audio(); if(!c) return;
+    const t=c.currentTime+0.03;
+    if(kind==='challenge'){
+      [0,0.5].forEach(d=>{tone(c,880,t+d,0.15,'square',0.05);tone(c,1319,t+d+0.17,0.24,'square',0.05);});
+    }else{
+      [523.25,659.25,783.99,1046.5].forEach((f,i)=>{tone(c,f,t+i*0.12,0.4,'sine',0.14);tone(c,f*2,t+i*0.12,0.22,'triangle',0.035);});
+    }
+    if(navigator.vibrate){try{navigator.vibrate(kind==='challenge'?[70,50,70]:[110]);}catch{}}
+  }
+  window.gvgNotifySound=notifySound;
 
   /* sound switch (menu footer) */
   function paintSwitch(){

@@ -1330,3 +1330,58 @@ img.img-missing{visibility:hidden}
 .ff-tile .ff-img{border-radius:10px}
 .ff-tile .ff-name{align-self:center;max-width:100%;overflow-wrap:anywhere;font-size:clamp(9px,2.9vw,12px);letter-spacing:.03em}
 .ff-grid-2 .ff-tile .ff-name{font-size:clamp(10px,3.2vw,13px)}
+
+/* ==========================================================================
+   v46
+   ========================================================================== */
+
+/* 1. Result review cards (Admin + Moderator).
+   Bug: ".admin-table td:last-child{width:1%}" also hit the card's last block, so APPROVE / REJECT were 2px wide ("PRO" / "EJEC").
+   The names were squeezed by the time column. Now: status+time on top, names get the full width, score gets its own row. */
+.admin-table .moderator-actions{margin-top:0}
+@media(max-width:760px){
+  #moderator-result-table>tr>td,#admin-result-table>tr>td,#moderator-guild-table>tr>td{width:auto;white-space:normal}
+  #moderator-result-table>tr>td.mr-match,#admin-result-table>tr>td.mr-match{grid-column:1/-1;grid-row:2;margin-top:14px}
+  #moderator-result-table>tr>td:nth-child(2),#admin-result-table>tr>td:nth-child(2){grid-column:1/-1;grid-row:3;margin-top:12px;font-size:24px}
+  .mr-statuscell .mr-proof{grid-row:4;margin-top:14px}
+  .mr-statuscell>.muted{grid-row:5}
+  #moderator-result-table>tr>td:nth-child(5),#admin-result-table>tr>td:nth-child(5){grid-row:6}
+  .mr-team strong{font-size:16px}
+}
+
+/* 2. Players: waiting players shown once (top) with visible APPROVE / REJECT */
+.pending-row>td{padding:14px}
+.pending-row .guild-row{align-items:center}
+.pending-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.pending-actions .btn{min-height:46px;border-radius:12px;font:800 13px/1 var(--f-body);letter-spacing:.1em}
+.pending-actions .btn.btn-green{background:linear-gradient(180deg,#34c777,#13804a);border:1px solid #7bf2b0;color:#04170c;text-shadow:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 0 #08331d}
+.pending-actions .btn.btn-red{background:linear-gradient(180deg,#ff4d6a,#b0112b);border:1px solid #ff9aab;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 3px 0 #4a0613}
+
+/* 3. Settings: every block folded behind one button */
+.settings-stack>.card .panel-head{cursor:pointer;margin-bottom:0}
+.settings-stack>.card.set-open .panel-head{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--b-1)}
+.settings-stack>.card:not(.set-open) .panel-head .subtle{display:none}
+.settings-stack>.card:not(.set-open) .panel-head .kicker{margin-bottom:2px}
+.set-body[hidden]{display:none}
+.set-toggle{flex:0 0 auto;margin-left:auto;min-height:40px;padding:0 14px;border:1px solid var(--line-gold);border-radius:999px;background:linear-gradient(180deg,#153a16,#0a1b0a);color:var(--gold-200);font:800 10.5px/1 var(--f-body);letter-spacing:.1em;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #020702}
+.settings-stack>.card.set-open .set-toggle{color:#fff;border-color:var(--b-2);background:linear-gradient(180deg,#1b2a1c,#0c140d)}
+.danger-zone .set-toggle{border-color:var(--bad-line);color:var(--bad)}
+
+/* v46 settings header: icon + title on top, one full-width button underneath */
+.settings-stack>.card .panel-head{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:12px}
+.settings-stack>.card .panel-head>div{min-width:0}
+.settings-stack>.card:not(.set-open) .panel-head{border-bottom:0;padding-bottom:0}
+.settings-stack>.card .set-toggle{grid-column:1/-1;width:100%;margin:0;min-height:46px;border-radius:12px;font-size:12px;letter-spacing:.12em}
+.dots-menu button.danger{color:#ff7a8d}
+
+/* v46: moderator player cards - long names stay whole (name on its own row, status under it) */
+@media(max-width:760px){
+  #moderator-guild-table>tr>td:nth-child(1),#moderator-guild-table>tr>td:nth-child(2){grid-column:1/-1}
+  #moderator-guild-table>tr>td:nth-child(2){justify-self:start}
+  #moderator-guild-table .moderator-guild-name{font-size:19px;overflow-wrap:break-word;word-break:normal}
+}
+
+/* v46: APPROVE / REJECT buttons - tick/cross and word always on ONE line, same size, clearly visible */
+.moderator-actions .btn,.pending-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;text-align:center;line-height:1}
+.moderator-actions .btn.btn-green{color:#031009;font-weight:900}
+.moderator-actions .btn.btn-red{color:#fff;font-weight:900}
