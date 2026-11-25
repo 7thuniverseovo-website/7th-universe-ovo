@@ -4038,6 +4038,155 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   window.addEventListener('hashchange',()=>setTimeout(preview,200));
 })();
 
+/* ===== v47: INSTALL APP + PHONE ALERTS (OneSignal web push, free plan) =====
+   Settings > "PHONE ALERTS & INSTALL" card:
+   - INSTALL APP : one tap when the phone allows it, otherwise a short how-to (Android / iPhone / computer).
+   - PHONE ALERTS: the phone asks "Allow", then a notification arrives for a new challenge, an approved result and a new champion.
+     Two switches (CHALLENGE / RESULT alerts) are remembered. Champion alerts are always on.
+   The OneSignal script is loaded only on phones that turned alerts on, so everybody else downloads nothing extra.
+   Each phone is described to OneSignal with small tags: m=1 (a player is logged in), g=player name, ch=1/0, rs=1/0.
+   The database sends the alerts (26_PUSH_ALERTS.sql). The OneSignal App ID is public and lives in config.js. */
+(function(){
+  'use strict';
+  const el=id=>document.getElementById(id);
+  const RAW=String((window.APP_CONFIG&&window.APP_CONFIG.ONESIGNAL_APP_ID)||'').trim();
+  const APP_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(RAW)?RAW:'';
+  const SDK_URL='https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+  const K_CH='gvg-push-ch-v1',K_RS='gvg-push-rs-v1',K_TAG='gvg-push-tagged-v1',K_NUDGE='gvg-push-nudge-v1';
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const standalone=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone===true||String(document.referrer).startsWith('android-app://');}catch{return false;}};
+  const supported=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
+  const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};
+  const put=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch{}};
+  let chOn=get(K_CH)!=='off',rsOn=get(K_RS)!=='off',conn='idle',connMsg='',sdkPromise=null,lastLeader='',deferred=null;
+  const leader=()=>(state.user&&state.guild&&state.guild.approval_status==='approved')?normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name):'';
+
+  if(!el('ap-css')){
+    const st=document.createElement('style');st.id='ap-css';
+    st.textContent=`.ap-box{display:flex;flex-direction:column;gap:10px;margin-top:4px}.ap-box .btn{width:100%}.ap-box [hidden]{display:none!important}
+.ap-note{font-size:12.5px;line-height:1.55;color:#c2ffc6;opacity:.92}
+.ap-nudge{position:fixed;left:10px;right:10px;bottom:12px;z-index:2147481000;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:#04200d;border:1px solid #19e328;color:#e9ffe9;font:600 13px/1.35 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.ap-nudge span{flex:1}.ap-nudge button{min-height:36px;padding:0 12px;border-radius:10px;border:1px solid #4dff5b;background:#0d7d15;color:#fff;font:800 11px system-ui,sans-serif;letter-spacing:.06em}.ap-nudge button[data-a=no]{background:transparent;color:#c2ffc6}
+.inst-steps{margin:14px 0;padding-left:22px;line-height:1.7}.inst-more{margin-top:10px}`;
+    document.head.appendChild(st);
+  }
+
+  /* ---------- INSTALL APP ---------- */
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;paint();});
+  window.addEventListener('appinstalled',()=>{deferred=null;paint();});
+  const stepsFor=k=>k==='ios'?['Open this site in <b>Safari</b>.','Tap the <b>Share</b> button (square with an arrow).','Choose <b>Add to Home Screen</b>, then tap <b>Add</b>.']
+    :k==='android'?['Tap the <b>&#8942;</b> menu at the top right of Chrome.','Tap <b>Install app</b> (or <b>Add to Home screen</b>).','Tap <b>Install</b>. The app appears on your home screen.']
+    :['Look for the <b>install icon</b> at the right end of the address bar, or open the browser menu.','Choose <b>Install 7TH UNIVERSE</b>.','Confirm. The app opens in its own window.'];
+  function howTo(){
+    if(deferred){const d=deferred;deferred=null;try{d.prompt();Promise.resolve(d.userChoice).catch(()=>{}).then(paint);}catch{paint();}return;}
+    const kind=isIOS?'ios':(isAndroid?'android':'desktop'),li=a=>a.map(s=>`<li>${s}</li>`).join('');
+    openModal(`<div class="modal-head"><div><div class="kicker">Free &bull; no store needed</div><h3>INSTALL APP</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div>
+      <ol class="inst-steps">${li(stepsFor(kind))}</ol>
+      <div class="ap-note">&#9889; Opens full screen &nbsp; &#128276; Alerts like a real app</div>
+      ${kind==='ios'?'<div class="ap-note" style="margin-top:8px">iPhone alerts work only after the app is added to the Home Screen (iOS 16.4 or newer).</div>':''}
+      ${kind!=='android'?'<details class="inst-more"><summary>Android phone?</summary><ol class="inst-steps">'+li(stepsFor('android'))+'</ol></details>':''}
+      ${kind!=='ios'?'<details class="inst-more"><summary>iPhone?</summary><ol class="inst-steps">'+li(stepsFor('ios'))+'</ol></details>':''}`);
+  }
+  try{if('serviceWorker' in navigator&&location.protocol==='https:'){const reg=()=>{navigator.serviceWorker.register('OneSignalSDKWorker.js').catch(()=>{});};if(document.readyState==='complete')reg();else window.addEventListener('load',reg,{once:true});}}catch{}
+
+  /* ---------- PHONE ALERTS ---------- */
+  function loadSdk(){
+    if(sdkPromise)return sdkPromise;
+    sdkPromise=new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('OneSignal did not start in time')),20000);
+      window.OneSignalDeferred=window.OneSignalDeferred||[];
+      window.OneSignalDeferred.push(async OneSignal=>{
+        try{await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});clearTimeout(timer);resolve(OneSignal);}
+        catch(error){clearTimeout(timer);reject(error);}
+      });
+      let cspHit='';const onCsp=e=>{if(/onesignal/i.test(e.blockedURI||''))cspHit=e.violatedDirective||'csp';};
+      document.addEventListener('securitypolicyviolation',onCsp);
+      const s=document.createElement('script');s.src=SDK_URL;s.defer=true;
+      s.onerror=()=>{clearTimeout(timer);reject(new Error(cspHit?'blocked by the site security policy ('+cspHit+')':'blocked on this phone (ad-blocker, Private DNS or data saver)'));};
+      document.head.appendChild(s);
+    }).catch(error=>{sdkPromise=null;throw error;});
+    return sdkPromise;
+  }
+  function setTags(OS,on){
+    const g=leader();
+    if(on&&g){OS.User.addTags({m:'1',g,ch:chOn?'1':'0',rs:rsOn?'1':'0'});put(K_TAG,'1');}
+    else{OS.User.addTags({m:'0'});put(K_TAG,null);}
+  }
+  function checkConn(OS){try{const sub=OS.User.PushSubscription;conn=(sub.id&&sub.optedIn)?'ok':'wait';}catch{conn='wait';}paint();}
+  async function activate(){
+    conn='connecting';paint();
+    try{
+      const OS=await loadSdk();
+      try{if(Notification.permission==='granted'&&!OS.User.PushSubscription.optedIn)await OS.User.PushSubscription.optIn();}catch{}
+      try{if(state.user&&state.user.id)await OS.login(String(state.user.id));}catch(error){console.warn('Alert service could not link this phone to the account:',error);}
+      setTags(OS,true);
+      setTimeout(()=>checkConn(OS),4000);setTimeout(()=>checkConn(OS),12000);
+    }catch(error){conn='fail';connMsg=String((error&&error.message)||error||'unknown').slice(0,120);paint();throw error;}
+  }
+  async function deactivate(){ // logout: this phone stops getting this player's alerts
+    try{const OS=await loadSdk();setTags(OS,false);try{OS.logout();}catch{}}catch{}
+    conn='idle';paint();
+  }
+  async function enable(){
+    if(!APP_ID||!supported)return;
+    let p=Notification.permission;
+    if(p==='default'){try{p=await Notification.requestPermission();}catch{}} // asked first, straight from the tap
+    paint();
+    if(p==='granted'){lastLeader=leader();try{await activate();}catch(error){console.warn('Phone alerts could not start:',error);}}
+  }
+  function toggle(kind){
+    if(kind==='ch'){chOn=!chOn;put(K_CH,chOn?'on':'off');}else{rsOn=!rsOn;put(K_RS,rsOn?'on':'off');}
+    paint();
+    if(supported&&Notification.permission==='granted'&&leader())loadSdk().then(OS=>setTags(OS,true)).catch(error=>console.warn('Alert switch could not be saved:',error));
+  }
+  function paint(){
+    const inst=el('app-install'),en=el('push-enable'),ch=el('push-ch'),rs=el('push-rs'),note=el('push-note'),inote=el('app-install-note');
+    if(!en)return;
+    const g=leader(),perm=supported?Notification.permission:'unsupported',app=standalone();
+    if(inst){inst.hidden=app;inst.textContent=deferred?'\u{1F4F2} INSTALL APP (ONE TAP)':'\u{1F4F2} INSTALL APP';}
+    if(inote){inote.hidden=!app;inote.textContent='\u2705 The app is installed on this phone.';}
+    let msg='';
+    if(!APP_ID)msg='Phone alerts are not switched on yet. The Admin is setting them up.';
+    else if(perm==='unsupported')msg=isIOS?'On iPhone, first install the app (Share > Add to Home Screen), open it from the Home Screen, then turn alerts on here.':'This browser cannot show phone alerts. Please use Chrome on Android.';
+    else if(perm==='denied')msg='Alerts are blocked for this site. Allow Notifications in your browser site settings, then come back here.';
+    else if(perm==='granted'){
+      const base='New champion alerts are always on.';
+      msg=conn==='ok'?'\u2705 Connected. Alerts will reach this phone. '+base
+        :conn==='connecting'?'Connecting to the alert service...'
+        :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute.'
+        :conn==='fail'?`Could not connect (${connMsg}). `+(/security policy/.test(connMsg)?'The site headers must allow cdn.onesignal.com.':'Turn off the ad-blocker, Private DNS or data saver for this site.')
+        :base;
+    }
+    en.hidden=!(APP_ID&&supported&&perm==='default'&&g);
+    [[ch,chOn,'CHALLENGE'],[rs,rsOn,'RESULT']].forEach(([b,on,name])=>{if(!b)return;b.hidden=!(APP_ID&&perm==='granted'&&g);b.textContent=(on?'\u{1F514} ':'\u{1F515} ')+name+' ALERTS '+(on?'ON':'OFF');b.setAttribute('aria-pressed',on?'true':'false');});
+    if(note){note.textContent=msg;note.hidden=!msg;}
+  }
+  function nudge(){ // one small bar per phone, only until the player makes a choice
+    if(!APP_ID||!supported||Notification.permission!=='default'||get(K_NUDGE)||!leader()||el('ap-nudge'))return;
+    const b=document.createElement('div');b.id='ap-nudge';b.className='ap-nudge';
+    b.innerHTML='<span>\u{1F514} Get challenge &amp; result alerts on this phone</span><button type="button" data-a="on">TURN ON</button><button type="button" data-a="no">LATER</button>';
+    document.body.appendChild(b);
+    b.addEventListener('click',e=>{const a=e.target&&e.target.dataset&&e.target.dataset.a;if(!a)return;put(K_NUDGE,'1');b.remove();if(a==='on')enable();});
+    setTimeout(()=>b.remove(),15000);
+  }
+  document.addEventListener('click',e=>{
+    const t=e.target&&e.target.closest?e.target.closest('#app-install,#push-enable,#push-ch,#push-rs'):null;if(!t)return;
+    if(t.id==='app-install')howTo();else if(t.id==='push-enable')enable();else toggle(t.id==='push-ch'?'ch':'rs');
+  });
+  try{matchMedia('(display-mode: standalone)').addEventListener('change',paint);}catch{}
+  setInterval(()=>{ // cheap check (no network): login / logout
+    const g=leader();if(g===lastLeader)return;
+    const prev=lastLeader;lastLeader=g;paint();
+    if(!supported||!APP_ID)return;
+    if(g&&Notification.permission==='granted')activate().catch(()=>{});
+    else if(!g&&prev&&get(K_TAG)==='1')deactivate();
+    if(g)setTimeout(nudge,6000);
+  },2500);
+  window.gvgAlertsPaint=paint;paint();
+})();
+
 (async function boot(){
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();

@@ -19,7 +19,8 @@
   <meta name="twitter:title" content="7TH UNIVERSE • One Vs One" />
   <meta name="twitter:image" content="https://7th-universe-1v1.pages.dev/og-image.jpg" />
   <link rel="icon" type="image/jpeg" href="7th-universe-1v1-logo.jpg" />
-  <link rel="apple-touch-icon" href="7th-universe-1v1-logo.jpg" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <style id="gvg-splash-css">
     html,body{background:#020a05}
     #gvg-splash{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center;overflow:hidden;color:#fff;background:radial-gradient(ellipse at 50% 38%,#12b543 0%,#0b7d2f 26%,#064a1c 52%,#02170a 78%,#010805 100%),#010805}
@@ -402,6 +403,18 @@
               <div id="pw-status" class="status"></div>
             </form>
           </div>
+          <div class="set-group">APP &amp; ALERTS</div>
+          <div class="card" id="alerts-card">
+            <div class="panel-head"><div><div class="kicker">Free &bull; works like a real app</div><h3>PHONE ALERTS &amp; INSTALL</h3><div class="subtle">Get a notification for new challenges, approved results and new champions, and install the site as an app on your phone.</div></div></div>
+            <div class="ap-box">
+              <button id="app-install" class="btn btn-primary" type="button">&#128242; INSTALL APP</button>
+              <div id="app-install-note" class="ap-note" hidden></div>
+              <button id="push-enable" class="btn btn-primary" type="button" hidden>&#128276; ENABLE PHONE ALERTS</button>
+              <button id="push-ch" class="btn btn-dk-green" type="button" hidden></button>
+              <button id="push-rs" class="btn btn-dk-green" type="button" hidden></button>
+              <div id="push-note" class="ap-note" hidden></div>
+            </div>
+          </div>
           <div class="set-group">TEAM &amp; TITLE</div>
                     <div class="card" id="title-card">
             <div class="panel-head"><div><div class="kicker">Rank &amp; Titles</div><h3>DISPLAY TITLE</h3><div class="subtle">Choose which title your player shows. On WhatsApp it appears only at the end of your challenge message, never on results. A rank is earned by finishing all 20 badges of a tier (Bronze to Diamond).</div></div></div>
@@ -711,7 +724,7 @@
   });
 })();
 </script>
-<script src="config.js"></script><script src="./script.js?v=46.0-pro"></script>
+<script src="config.js"></script><script src="./script.js?v=47.0-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>
