@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#050204" />
+  <meta name="theme-color" content="#020a05" />
   <meta name="color-scheme" content="dark" />
   <meta name="description" content="7TH UNIVERSE One Vs One — Challenges, verified results and weekly rankings." />
   <link rel="canonical" href="https://7th-universe-1v1.pages.dev/" />
@@ -20,6 +20,17 @@
   <meta name="twitter:image" content="https://7th-universe-1v1.pages.dev/og-image.jpg" />
   <link rel="icon" type="image/jpeg" href="7th-universe-1v1-logo.jpg" />
   <link rel="apple-touch-icon" href="7th-universe-1v1-logo.jpg" />
+  <style id="gvg-splash-css">
+    html,body{background:#020a05}
+    #gvg-splash{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center;overflow:hidden;color:#fff;background:radial-gradient(ellipse at 50% 38%,#12b543 0%,#0b7d2f 26%,#064a1c 52%,#02170a 78%,#010805 100%),#010805}
+    #gvg-splash .sp-rays{position:absolute;left:50%;top:38%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;pointer-events:none;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.06) 0 5deg,transparent 5deg 15deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 58%);mask-image:radial-gradient(circle,#000 0,transparent 58%)}
+    #gvg-splash .sp-logo{position:relative;width:min(36vw,150px);aspect-ratio:1/1;border-radius:50%;overflow:hidden;background:#000;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 0 0 7px rgba(25,227,40,.5),0 0 34px rgba(77,255,91,.65),0 14px 38px rgba(0,0,0,.6)}
+    #gvg-splash .sp-logo img{display:block;width:100%;height:100%;object-fit:cover}
+    #gvg-splash .sp-name{position:relative;margin-top:6px;font:800 24px/1 'Barlow Condensed','Arial Narrow',Impact,sans-serif;letter-spacing:.3em;text-indent:.3em;text-transform:uppercase;text-shadow:0 2px 14px rgba(0,0,0,.55)}
+    #gvg-splash .sp-sub{position:relative;font:700 10px/1.3 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.28em;text-indent:.28em;color:#d4ffdc;opacity:.85}
+    #gvg-splash .sp-bar{position:relative;width:min(46vw,170px);height:3px;margin-top:10px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}
+    #gvg-splash .sp-bar i{display:block;width:38%;height:100%;border-radius:3px;background:linear-gradient(90deg,#4dff5b,#fff)}
+  </style>
   <title>7TH UNIVERSE • ONE VS ONE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,6 +38,36 @@
   <link rel="stylesheet" href="./style.css?v=45.2-pro" />
 </head>
 <body>
+  <div id="gvg-splash" role="presentation" aria-hidden="true">
+    <div class="sp-rays"></div>
+    <div class="sp-logo"><img src="7th-universe-1v1-logo.jpg" alt="" width="150" height="150" decoding="async" fetchpriority="high" /></div>
+    <div class="sp-name">7TH UNIVERSE</div>
+    <div class="sp-sub">ONE VS ONE &bull; FAIR PLAY ARENA</div>
+    <div class="sp-bar"><i></i></div>
+  </div>
+  <script>
+  (function(){
+    var s=document.getElementById('gvg-splash'); if(!s) return;
+    var t0=Date.now(), gone=false, anims=[], reduce=false;
+    try{
+      reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!reduce&&s.animate){
+        var logo=s.querySelector('.sp-logo'), bar=s.querySelector('.sp-bar i');
+        anims.push(logo.animate([{transform:'scale(.9)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:520,easing:'cubic-bezier(.2,.9,.3,1)',fill:'both'}));
+        anims.push(logo.animate([{boxShadow:'0 0 0 3px rgba(255,255,255,.16),0 0 0 7px rgba(25,227,40,.5),0 0 28px rgba(77,255,91,.5),0 14px 38px rgba(0,0,0,.6)'},{boxShadow:'0 0 0 3px rgba(255,255,255,.22),0 0 0 10px rgba(25,227,40,.62),0 0 56px rgba(77,255,91,.95),0 14px 38px rgba(0,0,0,.6)'}],{duration:900,delay:520,direction:'alternate',iterations:Infinity,easing:'ease-in-out'}));
+        anims.push(bar.animate([{transform:'translateX(-110%)'},{transform:'translateX(270%)'}],{duration:1100,iterations:Infinity,easing:'ease-in-out'}));
+      }
+    }catch(e){}
+    function hide(){
+      if(gone) return; gone=true;
+      var done=function(){anims.forEach(function(a){try{a.cancel();}catch(e){}});if(s.parentNode)s.parentNode.removeChild(s);};
+      if(!reduce&&s.animate){var f=s.animate([{opacity:1},{opacity:0}],{duration:380,easing:'ease-in',fill:'forwards'});f.onfinish=done;f.oncancel=done;setTimeout(done,700);}
+      else done();
+    }
+    window.gvgSplashHide=function(){setTimeout(hide,Math.max(0,850-(Date.now()-t0)));}; /* shown at least 0.85 s so it never just flashes */
+    setTimeout(hide,6000); /* safety: never keep the screen covered */
+  })();
+  </script>
   <div class="topline"></div>
   <header>
     <div class="nav">
@@ -670,7 +711,7 @@
   });
 })();
 </script>
-<script src="config.js"></script><script src="./script.js?v=45.2-pro"></script>
+<script src="config.js"></script><script src="./script.js?v=46.0-pro"></script>
   <div id="app-dialog-backdrop" class="app-dialog-backdrop" aria-hidden="true"><div id="app-dialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"></div></div>
 
 </body>

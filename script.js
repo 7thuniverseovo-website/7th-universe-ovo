@@ -3862,10 +3862,187 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   setTimeout(sheenTick,1200);
 })();
 
+/* ===== v46: CHAMPION FULL SCREEN (weekly / monthly) + its own fanfare =====
+   When a new Weekly or Monthly champion is crowned, every approved player sees ONE full-screen golden card, ONE time
+   (the champion sees "YOU ARE THE CHAMPION"). Weekly and monthly have different sounds, made in the browser (no audio files).
+   "Already shown" is remembered on the phone (localStorage). A phone that never opened the site only records the current
+   champions silently, so old champions never pop up. It uses the same Hall of Fame functions the site already uses (cached).
+   Test on a phone: open the site address followed by  #preview-champion  (weekly)  or  #preview-champion-monthly. */
+(function(){
+  'use strict';
+  const STORE='gvg-champ-v2:',POLL_MS=3*60*1000,MAX_CARDS=2,SHOW_MS=7000,SOUND_KEY='gvg-sound-v1';
+  const mem={},pending=new Set();
+  const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
+  const soundOn=()=>{try{return localStorage.getItem(SOUND_KEY)!=='off';}catch{return true;}};
+  const vid=()=>(state.user&&state.guild&&state.guild.approval_status==='approved')?String(state.user.id):'';
+  const myNorm=()=>normalizeGuild(state.guild?(state.guild.guild_name_normalized||state.guild.guild_name):'');
+  const keyOf=a=>[a.award_type,a.award_year,a.period_key||a.period_number,normalizeGuild(a.guild_name_normalized||a.guild_name)].join('|');
+  const load=v=>{try{const r=localStorage.getItem(STORE+v);if(r){const o=JSON.parse(r);if(o&&Array.isArray(o.k))return o;}}catch{}return mem[v]||null;};
+  const save=(v,o)=>{o.k=o.k.slice(-300);mem[v]=o;try{localStorage.setItem(STORE+v,JSON.stringify(o));}catch{}};
+
+  /* ---- sound ---- */
+  let ctx=null;
+  function audio(){
+    if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;try{ctx=new AC();}catch{return null;}}
+    return ctx;
+  }
+  function note(c,f,t,d,type,vol){
+    const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+0.05);
+  }
+  function fanfare(c,kind){
+    const t=c.currentTime+0.05;
+    if(kind==='monthly'){ // grand: low drum, long rising fanfare, big final chord
+      note(c,65,t,0.55,'sine',0.35);note(c,98,t+0.02,0.4,'sine',0.25);
+      [523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>{note(c,f,t+0.18+i*0.16,0.5,'triangle',0.18);note(c,f*2,t+0.18+i*0.16,0.25,'sine',0.05);});
+      const T=t+1.1;[523.25,659.25,783.99,1046.5,1568].forEach(f=>note(c,f,T,2.2,'triangle',0.13));note(c,130.81,T,2.2,'sawtooth',0.05);
+    }else{ // weekly: bright short arpeggio + sparkle
+      [523.25,659.25,783.99,1046.5].forEach((f,i)=>{note(c,f,t+i*0.12,0.34,'triangle',0.17);note(c,f*2,t+i*0.12,0.18,'sine',0.05);});
+      const T=t+0.55;[659.25,783.99,1046.5].forEach(f=>note(c,f,T,1.1,'triangle',0.12));
+      [2093,2637,3136].forEach((f,i)=>note(c,f,T+0.1+i*0.09,0.2,'sine',0.04));
+    }
+  }
+  async function playSound(kind){ // 'ok' | 'off' | 'blocked' (phone needs a tap first)
+    if(!soundOn())return 'off';
+    const c=audio();if(!c)return 'off';
+    try{if(c.state!=='running')await Promise.race([c.resume(),new Promise(r=>setTimeout(r,300))]);}catch{}
+    if(c.state!=='running')return 'blocked';
+    try{fanfare(c,kind);}catch{return 'off';}
+    return 'ok';
+  }
+
+  /* ---- full-screen card ---- */
+  if(!document.getElementById('champ-css')){
+    const st=document.createElement('style');st.id='champ-css';
+    st.textContent=`.champ-screen{position:fixed;inset:0;z-index:2147482000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;overflow:hidden;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;background:radial-gradient(ellipse at 50% 36%,#13a83a 0%,#0a6f27 26%,#05401a 52%,#021a0b 78%,#010805 100%),#010805}
+.champ-rays{position:absolute;left:50%;top:36%;width:170vmax;height:170vmax;margin:-85vmax 0 0 -85vmax;pointer-events:none;background:repeating-conic-gradient(from 0deg,rgba(246,220,143,.10) 0 6deg,transparent 6deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 56%);mask-image:radial-gradient(circle,#000 0,transparent 56%)}
+.champ-conf{position:absolute;inset:0;pointer-events:none;overflow:hidden}.champ-conf i{position:absolute;top:-16px;width:8px;height:14px;border-radius:2px}
+.champ-body{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:520px}
+.champ-logo{width:60px;height:60px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px rgba(246,220,143,.6),0 0 22px rgba(77,255,91,.55)}
+.champ-medal{font-size:84px;line-height:1;text-shadow:0 6px 24px rgba(0,0,0,.5)}
+.champ-title{font:800 22px/1.1 'Barlow Condensed','Arial Narrow',Impact,sans-serif;letter-spacing:.22em;text-indent:.22em;text-transform:uppercase;color:#f6dc8f}
+.champ-name{font:900 clamp(30px,9vw,46px)/1.05 'Barlow Condensed','Arial Narrow',Impact,sans-serif;text-transform:uppercase;word-break:break-word;color:#fff1c2;text-shadow:0 0 18px rgba(246,220,143,.55),0 3px 10px rgba(0,0,0,.6)}
+.champ-trophy{font:700 12px/1.3 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#c2ffc6}
+.champ-cheer{margin-top:6px;font:600 15px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#e9ffe9}.champ-mine .champ-cheer{color:#fff1c2;font-weight:800}
+.champ-bar{position:absolute;left:50%;bottom:62px;width:min(54vw,200px);height:3px;transform:translateX(-50%);border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}.champ-bar i{display:block;width:100%;height:100%;transform-origin:left center;background:linear-gradient(90deg,#4dff5b,#fff1c2)}
+.champ-hint{position:absolute;left:0;right:0;bottom:30px;font:700 10px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.28em;text-indent:.28em;color:#c2ffc6;opacity:.85}`;
+    document.head.appendChild(st);
+  }
+  function titleOf(ev){
+    try{return canonicalTrophyTitle({award_type:ev.type,period_number:ev.period,award_year:ev.year});}catch{return ev.type==='monthly'?'MONTHLY CHAMPION':'WEEKLY CHAMPION';}
+  }
+  function showChampion(ev){
+    return new Promise(resolve=>{
+      const monthly=ev.type==='monthly',title=titleOf(ev);
+      const root=document.createElement('div');
+      root.className='champ-screen'+(ev.mine?' champ-mine':'');
+      root.setAttribute('role','alertdialog');root.setAttribute('aria-label',title+': '+(ev.name||''));
+      root.innerHTML=`<div class="champ-rays"></div><div class="champ-conf"></div><div class="champ-body">
+        <img class="champ-logo" src="7th-universe-1v1-logo.jpg" alt="" width="60" height="60" />
+        <div class="champ-medal">${monthly?'\u{1F451}':'\u{1F3C6}'}</div>
+        <div class="champ-title">${escapeHtml(title)}</div>
+        <div class="champ-name">${escapeHtml(ev.name||'')}</div>
+        ${ev.trophy?`<div class="champ-trophy">${escapeHtml(ev.trophy)}</div>`:''}
+        <div class="champ-cheer">${ev.mine?'Congratulations! You are the champion.':'Congratulations to the new champion!'}</div></div>
+        <div class="champ-bar"><i></i></div><div class="champ-hint">TAP TO CLOSE</div>`;
+      document.body.appendChild(root);
+      const hint=root.querySelector('.champ-hint'),bar=root.querySelector('.champ-bar i'),fx=!reduced()&&typeof root.animate==='function';
+      const anims=[];
+      if(fx){
+        root.animate([{opacity:0},{opacity:1}],{duration:320,easing:'ease-out'});
+        root.querySelector('.champ-medal').animate([{transform:'scale(.2) rotate(-14deg)',opacity:0},{transform:'scale(1.18) rotate(4deg)',opacity:1,offset:.6},{transform:'scale(1) rotate(0deg)',opacity:1}],{duration:760,easing:'cubic-bezier(.2,.9,.3,1)',fill:'backwards'});
+        root.querySelectorAll('.champ-title,.champ-name,.champ-trophy,.champ-cheer').forEach((x,i)=>x.animate([{opacity:0,transform:'translateY(18px)'},{opacity:1,transform:'none'}],{duration:480,delay:260+i*140,easing:'ease-out',fill:'backwards'}));
+        anims.push(root.querySelector('.champ-rays').animate([{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}],{duration:26000,iterations:Infinity}));
+        const conf=root.querySelector('.champ-conf'),cols=['#f6dc8f','#e9c46a','#fff1c2','#4dff5b','#19e328','#ffffff'],H=innerHeight||700;
+        for(let i=0;i<30;i++){
+          const p=document.createElement('i');p.style.left=(Math.random()*100)+'%';p.style.background=cols[i%cols.length];conf.appendChild(p);
+          p.animate([{transform:'translate3d(0,0,0) rotate(0deg)',opacity:1},{transform:`translate3d(${Math.round((Math.random()-.5)*90)}px,${H+60}px,0) rotate(${(Math.random()>.5?1:-1)*Math.round(360+Math.random()*540)}deg)`,opacity:.9}],{duration:2600+Math.random()*2200,delay:Math.random()*900,easing:'cubic-bezier(.3,.1,.6,1)',fill:'both'});
+        }
+      }
+      try{navigator.vibrate&&navigator.vibrate(monthly?[80,50,80,50,200]:[60,40,120]);}catch{}
+      let blocked=false,elapsed=0,closed=false,timer=null;const t0=Date.now(),STEP=200;
+      function finish(){
+        if(closed)return;closed=true;clearInterval(timer);
+        const done=()=>{anims.forEach(a=>{try{a.cancel();}catch{}});root.remove();resolve();};
+        if(fx){const a=root.animate([{opacity:1},{opacity:0}],{duration:300,easing:'ease-in',fill:'forwards'});a.onfinish=done;a.oncancel=done;setTimeout(done,450);}else done();
+      }
+      root.addEventListener('click',()=>{
+        if(Date.now()-t0<800)return; // an accidental tap in the first moment does nothing
+        if(blocked){blocked=false;hint.textContent='TAP TO CLOSE';playSound(ev.type);return;} // first tap = unlock the sound
+        finish();
+      });
+      timer=setInterval(()=>{ // counts only while the page is visible, so the whole card is really seen
+        if(document.hidden)return;
+        elapsed+=STEP;if(bar)bar.style.transform=`scaleX(${Math.max(0,1-elapsed/SHOW_MS)})`;
+        if(elapsed>=SHOW_MS)finish();
+      },STEP);
+      playSound(ev.type).then(r=>{if(r==='blocked'&&!closed){blocked=true;hint.textContent='TAP FOR SOUND';}});
+      try{ev.onShow&&ev.onShow();}catch{}
+    });
+  }
+  let chain=Promise.resolve(),waiting=false;
+  function enqueue(ev){
+    chain=chain.then(function run(){
+      if(document.hidden){return new Promise(r=>{if(waiting)return r();waiting=true;const w=()=>{if(!document.hidden){document.removeEventListener('visibilitychange',w);waiting=false;r();}};document.addEventListener('visibilitychange',w);}).then(run);}
+      return showChampion(ev).catch(()=>{}).then(()=>new Promise(r=>setTimeout(r,350)));
+    });
+  }
+
+  /* ---- finding new champions ---- */
+  async function fetchAwards(){
+    const st=await readRpc('get_gvg_hof_settings');if(!st||st.error)return null;
+    const s=Array.isArray(st.data)?st.data[0]:st.data,year=Number(s&&s.season_year)||new Date().getFullYear();
+    const types=['weekly','monthly'];
+    const res=await Promise.all(types.map(t=>readRpc('get_gvg_hall_of_fame',{p_award_type:t,p_award_year:year})));
+    if(res.some(r=>!r||r.error))return null;
+    return res.flatMap((r,i)=>(Array.isArray(r.data)?r.data:[]).map(a=>({...a,award_type:a.award_type||types[i]}))).filter(a=>a&&a.guild_name);
+  }
+  let busy=false,lastKey='',lastAt=0;
+  async function check(){
+    const v=vid();if(!v||busy||document.hidden)return;
+    busy=true;lastAt=Date.now();
+    try{
+      const rows=await fetchAwards();if(!rows||v!==vid())return;
+      const rec=load(v);
+      if(!rec){save(v,{k:rows.map(keyOf)});return;} // first visit on this phone: silent baseline
+      const seen=new Set(rec.k),fresh=rows.filter(a=>!seen.has(keyOf(a))&&!pending.has(keyOf(a)));
+      if(!fresh.length)return;
+      fresh.sort((a,b)=>(Number(b.award_year)-Number(a.award_year))||((b.award_type==='monthly')-(a.award_type==='monthly'))||(Number(b.period_number)-Number(a.period_number)));
+      fresh.slice(MAX_CARDS).forEach(a=>seen.add(keyOf(a)));
+      save(v,{k:[...seen]});
+      fresh.slice(0,MAX_CARDS).forEach(a=>{
+        const key=keyOf(a);pending.add(key);
+        enqueue({type:a.award_type,period:Number(a.period_number)||String(a.period_key||'').replace(/\D/g,''),year:a.award_year,name:a.guild_name,
+          trophy:(a.trophy_label&&!(typeof isDefaultHofLabel==='function'&&isDefaultHofLabel(a.trophy_label)))?a.trophy_label:'',
+          mine:normalizeGuild(a.guild_name_normalized||a.guild_name)===myNorm(),
+          onShow:()=>{pending.delete(key);const r=load(v)||{k:[]};if(!r.k.includes(key)){r.k.push(key);save(v,r);}}});
+      });
+    }catch(error){console.warn('Champion check failed:',error);}
+    finally{busy=false;}
+  }
+  setInterval(()=>{ // cheap tick (no network): start right after login, then re-check every 3 minutes while the page is visible
+    const k=vid();
+    if(k!==lastKey){lastKey=k;if(k)setTimeout(check,1500);}
+    else if(k&&!document.hidden&&Date.now()-lastAt>POLL_MS)check();
+  },2500);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&vid()&&Date.now()-lastAt>60000)check();});
+
+  /* ---- phone test: open  <site>#preview-champion  or  <site>#preview-champion-monthly  (shows a sample, saves nothing) ---- */
+  function preview(){
+    const m=String(location.hash||'').match(/preview-champion(-monthly)?/i);if(!m)return;
+    enqueue({type:m[1]?'monthly':'weekly',period:m[1]?new Date().getMonth()+1:1,year:new Date().getFullYear(),name:(state.guild&&state.guild.guild_name)||'7TH UNIVERSE',trophy:'',mine:true});
+  }
+  setTimeout(preview,2800);
+  window.addEventListener('hashchange',()=>setTimeout(preview,200));
+})();
+
 (async function boot(){
   renderRules();renderWeaponSkillChoices();
   const {data:{session}}=await db.auth.getSession();
   if(session){state.user=session.user;clearSectionCache('member:');await loadMyGuild();await completePendingRegistration();await enterMember({skipGuildReload:true});syncRegisterNav();}
   else{state.user=null;state.guild=null;syncRegisterNav();openView('public');await restoreGuest();}
   await restoreAdmin();
+  if(window.gvgSplashHide) window.gvgSplashHide();
 })();
