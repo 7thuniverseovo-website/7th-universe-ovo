@@ -1362,7 +1362,7 @@ async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your player is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
   const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited';
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;window.gvgNotifySound?.('challenge');showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;window.gvgPlayTone?.('sentChallenge');showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));window.gvgPlayTone?.('error');}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
@@ -1373,7 +1373,7 @@ async function handleResultSubmit(e){
   try{setBusy('result-submit',true);const urls=await uploadResultImages(files);
     // Upload exactly one proof file. The existing production RPC may enforce its legacy 2-slot array; repeat the same URL as a compatibility pointer, never upload a second image.
     const proofUrls=urls.length===1?[urls[0],urls[0]]:urls;
-    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;window.gvgNotifySound?.('result');showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
+    const {error}=await db.rpc('submit_gvg_result',{p_challenge_id:challengeId,p_winner_guild:winner,p_loser_guild:loser,p_score:score,p_image_urls:proofUrls});if(error)throw error;window.gvgPlayTone?.('sentResult');showStatus('result-status','ok','Result submitted for admin approval.');$('result-form').reset();clearSectionCache('member:');await Promise.all([loadLiveChallenges(),loadApprovedResults(),loadMyResultSubmissions()]);markSectionLoaded('member:challenges');markSectionLoaded('member:approved-results');markSectionLoaded('member:my-results');}catch(error){showStatus('result-status','error',humanizeError(error));window.gvgPlayTone?.('error');}finally{setBusy('result-submit',false,'SUBMIT RESULT');}
 }
 
 async function loadMyResultSubmissions(){
@@ -3544,7 +3544,7 @@ $('password-recovery-form').addEventListener('submit',async(e)=>{
    Tap the button (or the title) to open it, tap again to hide it. Only one is open at a time. */
 (function(){
   'use strict';
-  const LABELS={'my-profile-card':['EDIT PROFILE','HIDE'],'password-card':['CHANGE PASSWORD','HIDE'],'title-card':['CHANGE TITLE','HIDE'],'danger':['DELETE ACCOUNT','HIDE']};
+  const LABELS={'my-profile-card':['EDIT PROFILE','HIDE'],'password-card':['CHANGE PASSWORD','HIDE'],'title-card':['CHANGE TITLE','HIDE'],'danger':['DELETE ACCOUNT','HIDE'],'alerts-card':['OPEN','HIDE'],'install-card':['INSTALL','HIDE']};
   function init(){
     const stack=document.querySelector('#member-section-settings .settings-stack');
     if(!stack||stack.dataset.acc)return;
@@ -3827,7 +3827,41 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     }
     if(navigator.vibrate){try{navigator.vibrate(kind==='challenge'?[70,50,70]:[110]);}catch{}}
   }
-  window.gvgNotifySound=notifySound;
+  /* v48: every event has its own tone (made in the browser, no files). Each one can be switched in SETTINGS > ALERTS & SOUNDS.
+     challenge = two rising dings, result = happy four-note climb, champion = fanfare, sentChallenge = da-da-DAA (your challenge is posted),
+     sentResult = stamp chime (your result is sent), error = low buzzer, against = alarm beeps (a result was posted for your match).
+     They play only while the site is open. When the site is closed, the phone uses its normal notification sound. */
+  const NOTES={
+    challenge:[[784,0,.16],[1047,.14,.24]],
+    result:[[523,0,.13],[659,.11,.13],[784,.22,.13],[1047,.33,.3]],
+    champion:[[523,0,.15],[659,.15,.15],[784,.3,.15],[1047,.45,.2],[784,.66,.12],[1319,.78,.6]],
+    sentChallenge:[[659,0,.07],[659,.09,.07],[988,.2,.22]],
+    sentResult:[[1047,0,.08],[784,.09,.08],[1047,.18,.08],[1568,.27,.3]],
+    error:[[196,0,.14],[147,.17,.32]],
+    against:[[880,0,.1],[698,.12,.1],[880,.24,.1],[698,.36,.2]]
+  };
+  const WAVE={error:['sawtooth','square',0.09,0.12]}; // [wave 1, wave 2, loudness, overtone mix]: the error buzzer is rougher than the chimes
+  const VIB={challenge:[70,50,70],result:[110],against:[90,60,90,60,90],error:[160]};
+  function playKind(kind){
+    if(!soundOn) return;
+    const seq=NOTES[kind]; if(!seq) return;
+    const c=audio(); if(!c) return;
+    const w=WAVE[kind]||['sine','sine',0.2,0.3],t0=c.currentTime+0.03;
+    seq.forEach(([f,at,len])=>{
+      const g=c.createGain(),h=c.createGain(),o=c.createOscillator(),o2=c.createOscillator();
+      o.type=w[0];o2.type=w[1];
+      o.frequency.setValueAtTime(f,t0+at);o2.frequency.setValueAtTime(f*2.01,t0+at);
+      g.gain.setValueAtTime(0.0001,t0+at);
+      g.gain.exponentialRampToValueAtTime(w[2],t0+at+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+at+len+0.2);
+      h.gain.value=w[3];
+      o.connect(g);o2.connect(h);h.connect(g);g.connect(c.destination);
+      o.start(t0+at);o2.start(t0+at);o.stop(t0+at+len+0.25);o2.stop(t0+at+len+0.25);
+    });
+    if(navigator.vibrate&&VIB[kind]){try{navigator.vibrate(VIB[kind]);}catch{}}
+  }
+  window.gvgPlayTone=(kind,alertKey)=>{try{if(alertKey&&window.gvgAlertOn&&!window.gvgAlertOn(alertKey))return;if(window.gvgSoundKindOn&&!window.gvgSoundKindOn(kind))return;playKind(kind);}catch{}};
+  window.gvgNotifySound=k=>window.gvgPlayTone(k==='challenge'?'challenge':'result',k==='challenge'?'ch':'rs'); // old name, still used by the live-update dots
 
   /* sound switch (menu footer) */
   function paintSwitch(){
@@ -3873,7 +3907,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   const STORE='gvg-champ-v2:',POLL_MS=3*60*1000,MAX_CARDS=2,SHOW_MS=7000,SOUND_KEY='gvg-sound-v1';
   const mem={},pending=new Set();
   const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
-  const soundOn=()=>{try{return localStorage.getItem(SOUND_KEY)!=='off';}catch{return true;}};
+  const soundOn=()=>{try{if(window.gvgSoundKindOn&&!window.gvgSoundKindOn('champion'))return false;return localStorage.getItem(SOUND_KEY)!=='off';}catch{return true;}};
   const vid=()=>(state.user&&state.guild&&state.guild.approval_status==='approved')?String(state.user.id):'';
   const myNorm=()=>normalizeGuild(state.guild?(state.guild.guild_name_normalized||state.guild.guild_name):'');
   const keyOf=a=>[a.award_type,a.award_year,a.period_key||a.period_number,normalizeGuild(a.guild_name_normalized||a.guild_name)].join('|');
@@ -4038,11 +4072,9 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   window.addEventListener('hashchange',()=>setTimeout(preview,200));
 })();
 
-/* ===== v47: INSTALL APP + PHONE ALERTS (OneSignal web push, free plan) =====
-   Settings > "PHONE ALERTS & INSTALL" card:
-   - INSTALL APP : one tap when the phone allows it, otherwise a short how-to (Android / iPhone / computer).
-   - PHONE ALERTS: the phone asks "Allow", then a notification arrives for a new challenge, an approved result and a new champion.
-     Two switches (CHALLENGE / RESULT alerts) are remembered. Champion alerts are always on.
+/* ===== v47/v48: INSTALL APP + PHONE ALERTS + ALERTS & SOUNDS MENU (OneSignal web push, free plan) =====
+   SETTINGS > ALERTS & SOUNDS opens one menu: ALL ON / ALL OFF, three phone-alert switches (challenge, approved result, result posted for your match),
+   weekly/monthly champion alerts (always on) and one switch for every sound. SETTINGS > INSTALL APP installs the site as an app.
    The OneSignal script is loaded only on phones that turned alerts on, so everybody else downloads nothing extra.
    Each phone is described to OneSignal with small tags: m=1 (a player is logged in), g=player name, ch=1/0, rs=1/0.
    The database sends the alerts (26_PUSH_ALERTS.sql). The OneSignal App ID is public and lives in config.js. */
@@ -4052,7 +4084,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   const RAW=String((window.APP_CONFIG&&window.APP_CONFIG.ONESIGNAL_APP_ID)||'').trim();
   const APP_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(RAW)?RAW:'';
   const SDK_URL='https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-  const K_CH='gvg-push-ch-v1',K_RS='gvg-push-rs-v1',K_TAG='gvg-push-tagged-v1',K_NUDGE='gvg-push-nudge-v1';
+  const K_CH='gvg-push-ch-v1',K_RS='gvg-push-rs-v1',K_TAG='gvg-push-tagged-v1',K_NUDGE='gvg-push-nudge-v1',SK='gvg-snd-v2';
   const ua=navigator.userAgent||'';
   const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const isAndroid=/Android/i.test(ua);
@@ -4060,13 +4092,20 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   const supported=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
   const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};
   const put=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch{}};
-  let chOn=get(K_CH)!=='off',rsOn=get(K_RS)!=='off',conn='idle',connMsg='',sdkPromise=null,lastLeader='',deferred=null;
+  const K_SB='gvg-push-sb-v1';
+  let chOn=get(K_CH)!=='off',rsOn=get(K_RS)!=='off',sbOn=get(K_SB)!=='off',conn='idle',connMsg='',sdkPromise=null,lastLeader='',deferred=null;
   const leader=()=>(state.user&&state.guild&&state.guild.approval_status==='approved')?normalizeGuild(state.guild.guild_name_normalized||state.guild.guild_name):'';
+
 
   if(!el('ap-css')){
     const st=document.createElement('style');st.id='ap-css';
-    st.textContent=`.ap-box{display:flex;flex-direction:column;gap:10px;margin-top:4px}.ap-box .btn{width:100%}.ap-box [hidden]{display:none!important}
-.ap-note{font-size:12.5px;line-height:1.55;color:#c2ffc6;opacity:.92}
+    st.textContent=`.ap-note,.am-note{font-size:13px;line-height:1.55;color:#bfe8c6}.am-note{padding:13px 14px;border:1px solid rgba(77,255,91,.22);border-radius:12px;background:rgba(255,255,255,.04)}
+.am-body{display:flex;flex-direction:column;gap:10px;padding-top:8px}.am-quick{display:flex;gap:10px}.am-quick .btn{flex:1}.am-enable{width:100%}
+.am-group{margin-top:10px;font:800 12px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.24em;color:#e9c46a}
+.am-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border-radius:16px;border:1px solid rgba(233,196,106,.35);background:linear-gradient(180deg,#10261a,#08150e);color:#fff;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.am-txt{flex:1;display:flex;flex-direction:column;gap:4px}.am-txt b{font:700 16px/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.am-txt small{font:500 13px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#9db5a3}
+.am-sw{flex:0 0 auto;position:relative;width:56px;height:32px;border-radius:16px;background:#3a403b}.am-sw::after{content:'';position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff}
+.am-row[aria-checked=true] .am-sw{background:#12a533}.am-row[aria-checked=true] .am-sw::after{left:28px}.am-locked{opacity:.7;cursor:default}
 .ap-nudge{position:fixed;left:10px;right:10px;bottom:12px;z-index:2147481000;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:#04200d;border:1px solid #19e328;color:#e9ffe9;font:600 13px/1.35 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 .ap-nudge span{flex:1}.ap-nudge button{min-height:36px;padding:0 12px;border-radius:10px;border:1px solid #4dff5b;background:#0d7d15;color:#fff;font:800 11px system-ui,sans-serif;letter-spacing:.06em}.ap-nudge button[data-a=no]{background:transparent;color:#c2ffc6}
 .inst-steps{margin:14px 0;padding-left:22px;line-height:1.7}.inst-more{margin-top:10px}`;
@@ -4098,8 +4137,11 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
       const timer=setTimeout(()=>reject(new Error('OneSignal did not start in time')),20000);
       window.OneSignalDeferred=window.OneSignalDeferred||[];
       window.OneSignalDeferred.push(async OneSignal=>{
-        try{await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});clearTimeout(timer);resolve(OneSignal);}
-        catch(error){clearTimeout(timer);reject(error);}
+        try{
+          await OneSignal.init({appId:APP_ID,serviceWorkerPath:'OneSignalSDKWorker.js',notifyButton:{enable:false},welcomeNotification:{disable:true}});
+          try{OneSignal.Notifications.addEventListener('foregroundWillDisplay',ev=>{try{const d=ev&&ev.notification&&ev.notification.additionalData;if(d&&d.k==='sb'&&window.gvgPlayTone)window.gvgPlayTone('against','sb');}catch{}});}catch{} // site open: the alert also plays its own sound
+          clearTimeout(timer);resolve(OneSignal);
+        }catch(error){clearTimeout(timer);reject(error);}
       });
       let cspHit='';const onCsp=e=>{if(/onesignal/i.test(e.blockedURI||''))cspHit=e.violatedDirective||'csp';};
       document.addEventListener('securitypolicyviolation',onCsp);
@@ -4111,7 +4153,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
   }
   function setTags(OS,on){
     const g=leader();
-    if(on&&g){OS.User.addTags({m:'1',g,ch:chOn?'1':'0',rs:rsOn?'1':'0'});put(K_TAG,'1');}
+    if(on&&g){OS.User.addTags({m:'1',g,u:String((state.user&&state.user.id)||''),ch:chOn?'1':'0',rs:rsOn?'1':'0',sb:sbOn?'1':'0'});put(K_TAG,'1');}
     else{OS.User.addTags({m:'0'});put(K_TAG,null);}
   }
   function checkConn(OS){try{const sub=OS.User.PushSubscription;conn=(sub.id&&sub.optedIn)?'ok':'wait';}catch{conn='wait';}paint();}
@@ -4136,33 +4178,92 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     paint();
     if(p==='granted'){lastLeader=leader();try{await activate();}catch(error){console.warn('Phone alerts could not start:',error);}}
   }
-  function toggle(kind){
-    if(kind==='ch'){chOn=!chOn;put(K_CH,chOn?'on':'off');}else{rsOn=!rsOn;put(K_RS,rsOn?'on':'off');}
-    paint();
+  function setAlerts(o){ // {ch:true,rs:false,sb:true}
+    if('ch' in o){chOn=!!o.ch;put(K_CH,chOn?'on':'off');}
+    if('rs' in o){rsOn=!!o.rs;put(K_RS,rsOn?'on':'off');}
+    if('sb' in o){sbOn=!!o.sb;put(K_SB,sbOn?'on':'off');}
     if(supported&&Notification.permission==='granted'&&leader())loadSdk().then(OS=>setTags(OS,true)).catch(error=>console.warn('Alert switch could not be saved:',error));
   }
-  function paint(){
-    const inst=el('app-install'),en=el('push-enable'),ch=el('push-ch'),rs=el('push-rs'),note=el('push-note'),inote=el('app-install-note');
-    if(!en)return;
-    const g=leader(),perm=supported?Notification.permission:'unsupported',app=standalone();
-    if(inst){inst.hidden=app;inst.textContent=deferred?'\u{1F4F2} INSTALL APP (ONE TAP)':'\u{1F4F2} INSTALL APP';}
-    if(inote){inote.hidden=!app;inote.textContent='\u2705 The app is installed on this phone.';}
-    let msg='';
-    if(!APP_ID)msg='Phone alerts are not switched on yet. The Admin is setting them up.';
-    else if(perm==='unsupported')msg=isIOS?'On iPhone, first install the app (Share > Add to Home Screen), open it from the Home Screen, then turn alerts on here.':'This browser cannot show phone alerts. Please use Chrome on Android.';
-    else if(perm==='denied')msg='Alerts are blocked for this site. Allow Notifications in your browser site settings, then come back here.';
-    else if(perm==='granted'){
-      const base='New champion alerts are always on.';
-      msg=conn==='ok'?'\u2705 Connected. Alerts will reach this phone. '+base
+  const perm=()=>supported?Notification.permission:'unsupported';
+  window.gvgPushApi={perm,get:k=>k==='ch'?chOn:(k==='rs'?rsOn:sbOn),set:setAlerts,enable};
+  window.gvgAlertOn=k=>k==='ch'?chOn:(k==='rs'?rsOn:(k==='sb'?sbOn:true)); // used by the in-page alert sounds
+  function noteText(){
+    const p=perm();
+    if(!APP_ID)return 'Phone alerts are not switched on yet. The Admin is setting them up.';
+    if(p==='unsupported')return isIOS?'On iPhone, first install the app (Share > Add to Home Screen), open it from the Home Screen, then turn alerts on here.':'This browser cannot show phone alerts. Please use Chrome on Android.';
+    if(p==='denied')return 'Alerts are blocked for this site. Allow Notifications in your browser site settings, then open this menu again.';
+    if(p==='granted'){
+      return conn==='ok'?'\u2705 Connected. Alerts will reach this phone.'
         :conn==='connecting'?'Connecting to the alert service...'
         :conn==='wait'?'Allowed, but this phone is not registered yet. Close the site, open it again and wait a minute.'
         :conn==='fail'?`Could not connect (${connMsg}). `+(/security policy/.test(connMsg)?'The site headers must allow cdn.onesignal.com.':'Turn off the ad-blocker, Private DNS or data saver for this site.')
-        :base;
+        :'';
     }
-    en.hidden=!(APP_ID&&supported&&perm==='default'&&g);
-    [[ch,chOn,'CHALLENGE'],[rs,rsOn,'RESULT']].forEach(([b,on,name])=>{if(!b)return;b.hidden=!(APP_ID&&perm==='granted'&&g);b.textContent=(on?'\u{1F514} ':'\u{1F515} ')+name+' ALERTS '+(on?'ON':'OFF');b.setAttribute('aria-pressed',on?'true':'false');});
-    if(note){note.textContent=msg;note.hidden=!msg;}
+    return 'Phone alerts are not allowed on this phone yet.';
   }
+
+  /* ---------- ALERTS & SOUNDS MENU ---------- */
+  const PUSH_ROWS=[['ch','Challenge alerts','A new challenge posted by another player.'],['rs','Approved result alerts','A result of your match was approved by the Admin.'],['sb','Result posted for your match','The other player posted a result for a match with you.']];
+  const SOUND_ROWS=[['challenge','New challenge','Two quick dings'],['result','New approved result','Happy four-note climb'],['against','Result posted for your match','Alarm beeps'],['sentChallenge','Your challenge is posted','Da-da-DAA'],['sentResult','Your result is sent','Stamp chime'],['error','Error while posting','Low buzzer'],['champion','New champion','Fanfare']];
+  const readSnd=()=>{try{const o=JSON.parse(localStorage.getItem(SK)||'{}');return o&&typeof o==='object'?o:{};}catch{return {};}};
+  const writeSnd=o=>{try{localStorage.setItem(SK,JSON.stringify(o));}catch{}};
+  window.gvgSoundKindOn=kind=>readSnd()[kind]!==0; // used by gvgPlayTone and the champion screen
+  const masterOn=()=>{const b=el('sound-toggle');return !b||b.getAttribute('aria-pressed')!=='false';};
+  const row=(key,title,hint,on,locked)=>`<button type="button" class="am-row${locked?' am-locked':''}" role="switch" aria-checked="${on?'true':'false'}" data-am-key="${key}"${locked?' disabled':''}><span class="am-txt"><b>${title}</b><small>${hint}</small></span><i class="am-sw" aria-hidden="true"></i></button>`;
+  function menuHtml(){
+    const p=perm(),snd=readSnd();
+    let h='<div class="am-quick"><button class="btn btn-gold btn-small" type="button" data-am="all-on">ALL ON</button><button class="btn btn-ghost btn-small" type="button" data-am="all-off">ALL OFF</button></div><div class="am-group">PHONE ALERTS</div>';
+    const n=noteText();
+    if(p==='granted'){
+      if(n)h+='<div class="am-note">'+n+'</div>';
+      PUSH_ROWS.forEach(([k,t,s])=>{h+=row('push:'+k,t,s,window.gvgPushApi.get(k));});
+      h+=row('lock:champ','Weekly &amp; monthly champion','Always on for every player.',true,true);
+    }else{
+      h+='<div class="am-note">'+n+'</div>';
+      if(p==='default'&&APP_ID&&leader())h+='<button class="btn btn-gold btn-small am-enable" type="button" data-am="enable">&#128276; ENABLE PHONE ALERTS</button>';
+    }
+    h+='<div class="am-group">SOUNDS</div>'+row('snd:all','All sounds','Master switch: taps and every alert sound.',masterOn());
+    SOUND_ROWS.forEach(([k,t,s])=>{h+=row('snd:'+k,t,s,snd[k]!==0);});
+    return h;
+  }
+  function updateSummary(){
+    const s=el('alerts-summary');if(s){const p=perm(),a=p==='granted'?'Phone alerts ON':p==='default'?'Phone alerts OFF':p==='denied'?'Phone alerts blocked':'Phone alerts not available';const t=a+' \u00b7 Sound '+(masterOn()?'ON':'OFF');if(s.textContent!==t)s.textContent=t;}
+    const i=el('install-summary');if(i)i.textContent=deferred?'Tap to install in one step':'Tap to see how to install';
+    const c=el('install-card');if(c)c.hidden=standalone();
+  }
+  const render=()=>{const b=el('am-body');if(b)b.innerHTML=menuHtml();updateSummary();};
+  function paint(){render();}
+  function openMenu(){
+    openModal('<div class="modal-head"><div><div class="kicker">This device</div><h3>ALERTS &amp; SOUNDS</h3></div><button class="close-btn" type="button" data-action="close-modal" aria-label="Back">&#8592; BACK</button></div><div id="am-body" class="am-body"></div>');
+    render();
+  }
+  function setSound(kind,on){const o=readSnd();if(on)delete o[kind];else o[kind]=0;writeSnd(o);}
+  const HEADS={'#alerts-card>.panel-head':openMenu,'#install-card>.panel-head':howTo};
+  Object.keys(HEADS).forEach(sel=>{const h=document.querySelector(sel);if(h){h.removeAttribute('aria-expanded');h.setAttribute('aria-haspopup','dialog');}});
+  function headHit(e){for(const sel of Object.keys(HEADS)){if(e.target&&e.target.closest&&e.target.closest(sel))return HEADS[sel];}return null;}
+  document.addEventListener('click',e=>{const f=headHit(e);if(f){e.preventDefault();e.stopImmediatePropagation();f();}},true); // caught before the Settings accordion
+  document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const f=headHit(e);if(f){e.preventDefault();e.stopImmediatePropagation();f();}},true);
+  document.addEventListener('click',e=>{
+    const t=e.target;if(!t||!t.closest)return;
+    const r=t.closest('#modal [data-am-key]');
+    if(r&&!r.disabled){
+      const [type,k]=String(r.dataset.amKey).split(':'),on=r.getAttribute('aria-checked')!=='true';
+      if(type==='push')setAlerts({[k]:on});
+      else if(type==='snd'&&k==='all'){const b=el('sound-toggle');if(b)b.click();}
+      else if(type==='snd'){setSound(k,on);if(on&&window.gvgPlayTone)setTimeout(()=>window.gvgPlayTone(k),40);} // switching a sound ON plays it once as a preview
+      render();return;
+    }
+    const act=t.closest('#modal [data-am]');if(!act)return;
+    const a=act.dataset.am;
+    if(a==='enable'){act.disabled=true;Promise.resolve(enable()).catch(()=>{}).then(render);return;}
+    if(a==='all-on'||a==='all-off'){
+      const on=a==='all-on';
+      if(perm()==='granted')setAlerts({ch:on,rs:on,sb:on});
+      const o={};if(!on)SOUND_ROWS.forEach(([k])=>{o[k]=0;});writeSnd(o);
+      if(masterOn()!==on){const b=el('sound-toggle');if(b)b.click();}
+      render();
+    }
+  });
   function nudge(){ // one small bar per phone, only until the player makes a choice
     if(!APP_ID||!supported||Notification.permission!=='default'||get(K_NUDGE)||!leader()||el('ap-nudge'))return;
     const b=document.createElement('div');b.id='ap-nudge';b.className='ap-nudge';
@@ -4171,20 +4272,17 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     b.addEventListener('click',e=>{const a=e.target&&e.target.dataset&&e.target.dataset.a;if(!a)return;put(K_NUDGE,'1');b.remove();if(a==='on')enable();});
     setTimeout(()=>b.remove(),15000);
   }
-  document.addEventListener('click',e=>{
-    const t=e.target&&e.target.closest?e.target.closest('#app-install,#push-enable,#push-ch,#push-rs'):null;if(!t)return;
-    if(t.id==='app-install')howTo();else if(t.id==='push-enable')enable();else toggle(t.id==='push-ch'?'ch':'rs');
-  });
-  try{matchMedia('(display-mode: standalone)').addEventListener('change',paint);}catch{}
+  try{matchMedia('(display-mode: standalone)').addEventListener('change',updateSummary);}catch{}
   setInterval(()=>{ // cheap check (no network): login / logout
     const g=leader();if(g===lastLeader)return;
-    const prev=lastLeader;lastLeader=g;paint();
+    const prev=lastLeader;lastLeader=g;updateSummary();
     if(!supported||!APP_ID)return;
     if(g&&Notification.permission==='granted')activate().catch(()=>{});
     else if(!g&&prev&&get(K_TAG)==='1')deactivate();
     if(g)setTimeout(nudge,6000);
   },2500);
-  window.gvgAlertsPaint=paint;paint();
+  setInterval(()=>{if(!document.hidden)updateSummary();},3000);
+  setTimeout(updateSummary,1500);
 })();
 
 (async function boot(){
