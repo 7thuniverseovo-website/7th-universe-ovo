@@ -569,7 +569,12 @@ function renderWeaponSkillChoices(){
   if(pg) pg.innerHTML=[['false','PC NOT ALLOW'],['true','PC ALLOW']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-pc="${v}">${ffPic(v==='true'?'pc_allow':'pc_not_allow')}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
   const lg=$('limit-grid');
   if(lg) lg.innerHTML=[['limited','LIMITED'],['unlimited','UNLIMITED']].map(([v,l])=>`<button type="button" class="ff-tile ff-pc" data-limit="${v}">${ffPic(v)}<span class="ff-name">${l}</span><span class="ff-check" aria-hidden="true">✓</span></button>`).join('');
+  const hg=$('hp-grid');
+  if(hg) hg.innerHTML=[200,500].map(n=>`<button type="button" class="ff-tile ff-pc" data-hp="${n}">${hpPic(n)}<span class="ff-name">${n} HP</span><span class="ff-check" aria-hidden="true">\u2713</span></button>`).join('');
   syncFfTiles();
+}
+function hpPic(n){ // heart with the HP number (drawn here, no image file needed)
+  return `<span class="ff-pic"><span class="ff-art"><svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><defs><linearGradient id="hpg${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6bff78"/><stop offset="1" stop-color="#0b8a2a"/></linearGradient></defs><path d="M32 57C11 41 4 29 4 19.5 4 11.5 10 6 17.5 6 24 6 29 9.5 32 15 35 9.5 40 6 46.5 6 54 6 60 11.5 60 19.5 60 29 53 41 32 57Z" fill="url(#hpg${n})" stroke="#c2ffc6" stroke-width="2"/><text x="32" y="36" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="${n>=500?17:16}" fill="#04200d">${n}</text></svg></span></span>`;
 }
 function syncFfTiles(){
   document.querySelectorAll('#challenge-form .ff-tile input').forEach(i=>i.closest('.ff-tile')?.classList.toggle('selected',i.checked));
@@ -577,7 +582,14 @@ function syncFfTiles(){
   document.querySelectorAll('#pc-grid .ff-tile').forEach(t=>{const on=sel&&sel.value===t.dataset.pc;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
   const lsel=$('challenge-limit-type');
   document.querySelectorAll('#limit-grid .ff-tile').forEach(t=>{const on=lsel&&lsel.value===t.dataset.limit;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
+  const hsel=$('challenge-hp');
+  document.querySelectorAll('#hp-grid .ff-tile').forEach(t=>{const on=hsel&&hsel.value===t.dataset.hp;t.classList.toggle('selected',on);t.setAttribute('aria-pressed',on?'true':'false');});
 }
+document.addEventListener('click',e=>{
+  const t=e.target.closest?.('#hp-grid .ff-tile'); if(!t) return;
+  const sel=$('challenge-hp'); if(sel){sel.value=t.dataset.hp;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+  syncFfTiles();
+});
 document.addEventListener('change',e=>{if(e.target.closest?.('#challenge-form')) syncFfTiles();});
 document.addEventListener('click',e=>{
   const t=e.target.closest?.('#pc-grid .ff-tile'); if(!t) return;
@@ -1094,6 +1106,15 @@ async function loadRegisteredGuilds(){
   }
 }
 
+async function attachChallengeHp(){ // HP lives in its own small table column, so it is added to the list here (a failure only hides the HP chip)
+  try{
+    if(!state.challenges.length||window.__gvgNoHpRpc) return;
+    const r=await db.rpc('get_gvg_challenge_hp');
+    if(r.error){if(/could not find the function|does not exist|PGRST202|42883/i.test(String(r.error.message||r.error.code||r.error)))window.__gvgNoHpRpc=true;return;}
+    const m=new Map((r.data||[]).map(x=>[String(x.challenge_id),x.hp_amount]));
+    state.challenges.forEach(c=>{const v=m.get(String(c.id));if(v)c.hp_amount=v;});
+  }catch{}
+}
 async function loadLiveChallenges(){
   try{
     let res=await db.rpc('get_gvg_live_challenges_v2');
@@ -1103,6 +1124,7 @@ async function loadLiveChallenges(){
     }
     if(res.error) throw res.error;
     state.challenges=res.data||[];
+    await attachChallengeHp();
     renderChallenges();
     fillResultChallenges();
     window.gvgNotifyLoaded?.('challenges');
@@ -1130,7 +1152,7 @@ function challengeWhatsAppText(c){
   const weapons=(c.weapons||[]).join(', ')||'any';
   const pc=typeof c.pc_allowed==='boolean'?(c.pc_allowed?'PC allowed':'PC not allowed'):'';
   const skills=(c.active_skills||[]).length?(c.active_skills||[]).join(', '):'no active skills';
-  return `Hello! I am the player of ${me} (7TH UNIVERSE 1V1). We accept your challenge ${c.challenge_code||''} at ${formatTime(c.match_time)}.\nWeapons: ${weapons}${pc?`\n${pc}`:''}\nActive skills: ${skills}\nPlease confirm the match.`;
+  return `Hello! I am the player of ${me} (7TH UNIVERSE 1V1). We accept your challenge ${c.challenge_code||''} at ${formatTime(c.match_time)}.\nWeapons: ${weapons}${pc?`\n${pc}`:''}${c.hp_amount?`\nHP: ${c.hp_amount}`:''}\nActive skills: ${skills}\nPlease confirm the match.`;
 }
 function challengeCardHtml(c){
   const status=String(c.status||'open'),open=status==='open',mine=isMyGuildName(c.guild_name);
@@ -1156,6 +1178,7 @@ function challengeCardHtml(c){
       <div class="ch-rule"><dt>MATCH TIME</dt><dd class="ch-time">${escapeHtml(formatTime(c.match_time))}</dd></div>
       ${hasPc?`<div class="ch-rule"><dt>PC MODE</dt><dd><span class="pc-chip ${c.pc_allowed?'is-allowed':'is-blocked'}">${c.pc_allowed?'PC ALLOWED':'PC NOT ALLOWED'}</span></dd></div>`:''}
       ${c.limit_type?`<div class="ch-rule"><dt>TYPE</dt><dd><span class="pc-chip ${c.limit_type==='unlimited'?'is-allowed':'is-blocked'}">${c.limit_type==='unlimited'?'UNLIMITED':'LIMITED'}</span></dd></div>`:''}
+      ${c.hp_amount?`<div class="ch-rule"><dt>HP</dt><dd><span class="pc-chip is-allowed">${escapeHtml(c.hp_amount)} HP</span></dd></div>`:''}
       <div class="ch-rule ch-rule-wide"><dt>WEAPONS ALLOWED</dt><dd class="pill-wrap">${weapons.length?weapons.map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">ANY</span>'}</dd></div>
       <div class="ch-rule ch-rule-wide"><dt>ACTIVE SKILLS</dt><dd class="pill-wrap">${skills.length?skills.map(x=>`<span class="pill pill-skill">${escapeHtml(x)}</span>`).join(''):'<span class="pill pill-muted">NO ACTIVE SKILLS</span>'}</dd></div>
     </dl>
@@ -1360,9 +1383,9 @@ async function uploadResultImages(files){
 
 async function handleChallengeSubmit(e){
   e.preventDefault();clearStatus('challenge-status');if(!guildApproved())return showStatus('challenge-status','error','Your player is not approved or is currently banned.');if(!challengePostingOpen())return showStatus('challenge-status','error','New challenges are allowed from 10:00 AM until 11:59 PM Pakistan time. At 12:00 AM, challenges close.');
-  const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited';
+  const time=$('challenge-time').value; const weapons=[...document.querySelectorAll('input[name="weapons"]:checked')].map(x=>x.value); const skills=[...document.querySelectorAll('input[name="skills"]:checked')].map(x=>x.value); const pcAllowed=$('challenge-pc-allowed')?.value==='true'; const limitType=$('challenge-limit-type')?.value==='unlimited'?'unlimited':'limited'; const hp=$('challenge-hp')?.value==='500'?500:200;
   if(!time||!weapons.length){showStatus('challenge-status','error','Match time and at least one weapon are required.');return;}
-  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;window.gvgPlayTone?.('sentChallenge');showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));window.gvgPlayTone?.('error');}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
+  try{setBusy('challenge-submit',true);const base={p_challenge_time:time,p_weapons:weapons,p_active_skills:skills,p_pc_allowed:pcAllowed};let res=await db.rpc('submit_gvg_challenge',{...base,p_limit_type:limitType}),typeSaved=true;if(res.error&&/PGRST202|Could not find the function|schema cache/i.test(`${res.error.code||''} ${res.error.message||''}`)){res=await db.rpc('submit_gvg_challenge',base);typeSaved=false;}const {data,error}=res;if(error)throw error;let hpSaved=false;try{const hr=await db.rpc('set_my_challenge_hp',{p_challenge_code:data?.challenge_code,p_hp:hp});hpSaved=!hr.error&&hr.data===true;}catch{}window.gvgPlayTone?.('sentChallenge');showStatus('challenge-status','ok',`Challenge ${data?.challenge_code||''} posted successfully. PC: ${pcAllowed?'ALLOW':'NOT ALLOW'}. Type: ${limitType.toUpperCase()}${typeSaved?'':' (type not saved yet - database update pending)'}. HP: ${hp}${hpSaved?'':' (HP not saved yet - database update pending)'}.`);$('challenge-form').reset();clearTimePicker();clearSectionCache('member:challenges');await loadLiveChallenges();markSectionLoaded('member:challenges');}catch(error){showStatus('challenge-status','error',humanizeError(error));window.gvgPlayTone?.('error');}finally{setBusy('challenge-submit',false,'POST CHALLENGE');}
 }
 
 async function handleResultSubmit(e){
@@ -4191,7 +4214,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     const p=perm();
     if(!APP_ID)return 'Phone alerts are not switched on yet. The Admin is setting them up.';
     if(p==='unsupported')return isIOS?'On iPhone, first install the app (Share > Add to Home Screen), open it from the Home Screen, then turn alerts on here.':'This browser cannot show phone alerts. Please use Chrome on Android.';
-    if(p==='denied')return 'Alerts are blocked for this site. Allow Notifications in your browser site settings, then open this menu again.';
+    if(p==='denied')return 'Chrome says alerts are BLOCKED for this address ('+location.host+(standalone()?', installed app':', browser')+'). Open Chrome menu > Settings > Site settings > Notifications, allow this address (or tap the lock icon by the address bar > Permissions), then tap CHECK AGAIN.';
     if(p==='granted'){
       return conn==='ok'?'\u2705 Connected. Alerts will reach this phone.'
         :conn==='connecting'?'Connecting to the alert service...'
@@ -4221,6 +4244,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     }else{
       h+='<div class="am-note">'+n+'</div>';
       if(p==='default'&&APP_ID&&leader())h+='<button class="btn btn-gold btn-small am-enable" type="button" data-am="enable">&#128276; ENABLE PHONE ALERTS</button>';
+      if(p==='denied')h+='<button class="btn btn-ghost btn-small am-enable" type="button" data-am="recheck">CHECK AGAIN</button>';
     }
     h+='<div class="am-group">SOUNDS</div>'+row('snd:all','All sounds','Master switch: taps and every alert sound.',masterOn());
     SOUND_ROWS.forEach(([k,t,s])=>{h+=row('snd:'+k,t,s,snd[k]!==0);});
@@ -4256,6 +4280,7 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     const act=t.closest('#modal [data-am]');if(!act)return;
     const a=act.dataset.am;
     if(a==='enable'){act.disabled=true;Promise.resolve(enable()).catch(()=>{}).then(render);return;}
+    if(a==='recheck'){recheck();return;}
     if(a==='all-on'||a==='all-off'){
       const on=a==='all-on';
       if(perm()==='granted')setAlerts({ch:on,rs:on,sb:on});
@@ -4273,6 +4298,13 @@ $('password-form')?.addEventListener('submit',handlePasswordChange);
     setTimeout(()=>b.remove(),15000);
   }
   try{matchMedia('(display-mode: standalone)').addEventListener('change',updateSummary);}catch{}
+  function recheck(){ // the player may have changed the permission in Chrome settings: read it again and, if allowed now, connect this phone
+    render();
+    if(supported&&APP_ID&&Notification.permission==='granted'&&leader()&&conn==='idle'){lastLeader=leader();activate().catch(()=>{});}
+  }
+  try{navigator.permissions.query({name:'notifications'}).then(ps=>{ps.onchange=recheck;}).catch(()=>{});}catch{}
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)recheck();});
+  window.addEventListener('focus',recheck);
   setInterval(()=>{ // cheap check (no network): login / logout
     const g=leader();if(g===lastLeader)return;
     const prev=lastLeader;lastLeader=g;updateSummary();
